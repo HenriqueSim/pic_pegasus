@@ -46,6 +46,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ****************************************************************************/
 #include "autopilot_modes/mode_waypoint.hpp"
+#include <pegasus_utils/rotations.hpp>
+
 
 namespace autopilot {
 
@@ -60,6 +62,10 @@ void WaypointMode::initialize() {
     node_->declare_parameter<std::string>("autopilot.WaypointMode.set_waypoint_service", "set_waypoint"); 
     this->waypoint_service_ = this->node_->create_service<pegasus_msgs::srv::Waypoint>(node_->get_parameter("autopilot.WaypointMode.set_waypoint_service").as_string(), std::bind(&WaypointMode::waypoint_callback, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(this->node_->get_logger(), "WaypointMode initialized");
+
+    // Get the mass of the vehicle (used to get the thrust from the acceleration)
+    VehicleConstants vehicle_constansts = get_vehicle_constants();
+    mass_ = vehicle_constansts.mass;
 }
 
 bool WaypointMode::enter() {
@@ -85,9 +91,90 @@ bool WaypointMode::exit() {
 
 void WaypointMode::update(double dt) {
 
-    // Set the controller to track the target position and attitude
-    this->controller_->set_position(this->target_pos, this->target_yaw, dt);
+    // Get the current state of the vehicle
+    State state = this->get_vehicle_state();
+
+    // Calculate the position error
+    Eigen::Vector3d position_error = this->target_pos - state.position;
+
+    // Calculate the velocity error using the previous position error
+    Eigen::Vector3d velocity_error = (position_error - this->prev_pos_error_) / dt;
+
+    //Update the previous position error
+    this->prev_pos_error_ = position_error;
+    // Compute the desired control output acceleration for each controller
+    Eigen::Vector3d u;
+    const Eigen::Vector3d g(0.0, 0.0, 9.81);
+    for(unsigned int i=0; i < 3; i++) u[i] = compute_output(position_error[i], velocity_error[i], 0.0, dt, i); // (acceleration[i] - g[i])* mass_
+    
+    u[2] = u[2] - g(2);
+
+    // Convert the acceleration to attitude and thrust
+    Eigen::Vector4d attitude_thrust = get_attitude_thrust_from_acceleration(u, mass_, Pegasus::Rotations::deg_to_rad(this->target_yaw));
+
+    // Set the control output
+    Eigen::Vector3d attitude_target = Eigen::Vector3d(
+        Pegasus::Rotations::rad_to_deg(attitude_thrust[0]),
+        Pegasus::Rotations::rad_to_deg(attitude_thrust[1]),
+        Pegasus::Rotations::rad_to_deg(attitude_thrust[2]));
+
+    // Send the attitude and thrust to the attitude controller
+    this->controller_->set_attitude(attitude_target, attitude_thrust[3]);
+
+    // // Update and publish the PID statistics
+    // update_statistics(position);
+    // statistics_pub_->publish(pid_statistics_msg_);
 }
+
+Eigen::Vector4d WaypointMode::get_attitude_thrust_from_acceleration(const Eigen::Vector3d & u, double mass, double yaw) {
+
+    Eigen::Matrix3d RzT;
+    Eigen::Vector3d r3d;
+    Eigen::Vector4d attitude_thrust;
+
+    /* Compute the normalized thrust and r3d vector */
+    double T = mass * u.norm();
+
+    /* Compute the rotation matrix about the Z-axis */
+    RzT << cos(yaw), sin(yaw), 0.0,
+          -sin(yaw), cos(yaw), 0.0,
+                0.0,      0.0, 1.0;
+
+    /* Compute the normalized rotation */
+    r3d = -RzT * u / u.norm();
+
+    // Compute the actual attitude and setup the desired thrust to apply to the vehicle
+    attitude_thrust << asin(-r3d[1]), atan2(r3d[0], r3d[2]), yaw, T;
+    return attitude_thrust;
+}
+
+double WaypointMode::compute_output(double error_p, double error_d, double feed_forward_ref, double dt, unsigned int i) {
+
+    // Compute the PID terms
+    double p_term = kp_[i] * error_p;
+    double d_term = kd_[i] * error_d;
+    double ff_term = kff_[i] * feed_forward_ref;
+
+    // Compute the output and saturate it
+    double output = p_term + d_term + ff_term;      //add the integral term later
+    double saturated_ouput = std::max(min_output_, std::min(output, max_output_));
+
+    // // Update the statistics structure used for extracting the performance of the control loop
+    // stats_.dt = dt;
+    // stats_.error_p = error_p;
+    // stats_.error_d = error_d;
+    // stats_.integral = error_i_;
+    // stats_.ff_ref = feed_forward_ref;
+    // stats_.p_term = p_term;
+    // stats_.d_term = d_term;
+    // stats_.i_term = i_term;
+    // stats_.ff_term = ff_term;
+    // stats_.output_pre_sat = output;
+    // stats_.output = saturated_ouput;
+
+    return saturated_ouput;
+}
+
 
 void WaypointMode::waypoint_callback(const pegasus_msgs::srv::Waypoint::Request::SharedPtr request, const pegasus_msgs::srv::Waypoint::Response::SharedPtr response) {
     
@@ -104,6 +191,35 @@ void WaypointMode::waypoint_callback(const pegasus_msgs::srv::Waypoint::Request:
     response->success = true;
     RCLCPP_WARN(this->node_->get_logger(), "Waypoint set to (%f, %f, %f) with yaw %f", this->target_pos[0], this->target_pos[1], this->target_pos[2], this->target_yaw);
 }
+
+// void WaypointMode::update_statistics(const Eigen::Vector3d & position_ref) {
+    
+//     // For each PID control [x, y, z]
+//     for(unsigned int i = 0; i < 3; i++) {
+
+//         // Get the statistics from the controller object
+//         Pegasus::Pid::Statistics stats = controllers_[i]->get_statistics();
+
+//         pid_statistics_msg_.statistics[i].dt = stats.dt;
+//         pid_statistics_msg_.statistics[i].reference = position_ref[i];
+//         // Fill the feedback errors
+//         pid_statistics_msg_.statistics[i].error_p = stats.error_p;
+//         pid_statistics_msg_.statistics[i].error_d = stats.error_d;
+//         pid_statistics_msg_.statistics[i].integral = stats.integral;
+//         pid_statistics_msg_.statistics[i].ff_ref = stats.ff_ref;
+
+//         // Fill the errors scaled by the gains
+//         pid_statistics_msg_.statistics[i].p_term = stats.p_term;
+//         pid_statistics_msg_.statistics[i].d_term = stats.d_term;
+//         pid_statistics_msg_.statistics[i].i_term = stats.i_term;
+//         pid_statistics_msg_.statistics[i].ff_term = stats.ff_term;
+
+//         // Fill the outputs of the controller
+//         pid_statistics_msg_.statistics[i].anti_windup_discharge = stats.anti_windup_discharge;
+//         pid_statistics_msg_.statistics[i].output_pre_sat = stats.output_pre_sat;
+//         pid_statistics_msg_.statistics[i].output = stats.output;
+//     }
+// }
 
 } // namespace autopilot
 

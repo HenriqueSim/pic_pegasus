@@ -50,6 +50,11 @@
 #include <autopilot/mode.hpp>
 #include "pegasus_msgs/srv/waypoint.hpp"
 
+// // ROS2 messages
+// #include "pegasus_msgs/msg/pid_statistics.hpp"
+// #include "pegasus_msgs/msg/control_attitude.hpp"
+// #include "pegasus_msgs/msg/control_position.hpp"
+
 namespace autopilot {
 
 class WaypointMode : public autopilot::Mode {
@@ -70,6 +75,34 @@ protected:
 
     // Check if the waypoint is already set
     bool waypoint_set_{false};
+
+    // Target position and yaw
+    // Eigen::Vector3d target_pos{Eigen::Vector3d::Zero()};
+    // double target_yaw{0.0};
+
+    //Store the previous position error
+    Eigen::Vector3d prev_pos_error_{Eigen::Vector3d::Zero()};
+
+    // The mass of the vehicle
+    double mass_;
+
+    // The PID gains
+    Eigen::Vector3d kp_{ 1.0, 1.0, 1.0};
+    Eigen::Vector3d kd_{1.0, 1.0, 1.0};
+    //Eigen::Vector3d k_i_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d kff_{1.0, 1.0, 1.0};
+
+    double min_output_{-20.0};
+    double max_output_{20.0};
+
+    // The output of the PID controllers
+    double compute_output(double error_p, double error_d, double feed_forward_ref, double dt, unsigned int i);
+
+    // Get the attitude and thrust from the acceleration
+    Eigen::Vector4d get_attitude_thrust_from_acceleration(const Eigen::Vector3d & u, double mass, double yaw);
+
+    // // Update the statistics of the PID controllers
+    // void update_statistics(const Eigen::Vector3d & position_ref);
 
     // The target position and attitude waypoint to be at
     Eigen::Vector3d target_pos{Eigen::Vector3d::Zero()};
