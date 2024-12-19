@@ -87,8 +87,8 @@ protected:
     double mass_;
 
     // The PID gains
-    Eigen::Vector3d kp_{ 1.0, 1.0, 1.0};
-    Eigen::Vector3d kd_{1.0, 1.0, 1.0};
+    Eigen::Vector3d kp_{ 4.6, 4.6, 4.6};
+    Eigen::Vector3d kd_{3.22, 3.22, 3.22};
     //Eigen::Vector3d k_i_{Eigen::Vector3d::Zero()};
     Eigen::Vector3d kff_{1.0, 1.0, 1.0};
 
