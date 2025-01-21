@@ -4,7 +4,7 @@
     # Low-level configurations
     # ----------------------------------------------------------------------------------------------------------
     dynamics:
-      mass: 1.500 #Kg
+      mass: 1.525 #Kg
       thrust_curve:
         # Formula T(N) = a * input^2 + b*input + c
         # with input = [0.0, 1.0], hence we need to scale by 100.0
@@ -16,7 +16,7 @@
     # ----------------------------------------------------------------------------------------------------------
     autopilot:
       # Update rate
-      rate: 33.0 # Hz
+      rate: 1000.0 # Hz
       # ----------------------------------------------------------------------------------------------------------
       # Definition of the controller that will perform the tracking of references of the different operation modes
       # ----------------------------------------------------------------------------------------------------------
@@ -61,7 +61,7 @@
       BoxGeofencing:
         limits_x: [-10.0, 10.0]
         limits_y: [-10.0, 10.0]
-        limits_z: [-2.2,  1.00] # NED Coordinades (z-negative is up)
+        limits_z: [-10.0,  1.00] # NED Coordinades (z-negative is up)
       # ----------------------------------------------------------------------------------------------------------
       # Definition of the trajectory manager that generates parameterized trajectories to be followed
       # ----------------------------------------------------------------------------------------------------------

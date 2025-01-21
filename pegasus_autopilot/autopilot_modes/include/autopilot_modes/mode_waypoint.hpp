@@ -49,6 +49,8 @@
 
 #include <autopilot/mode.hpp>
 #include "pegasus_msgs/srv/waypoint.hpp"
+#include "geometry_msgs/msg/vector3_stamped.hpp" // Ensure this header is included
+#include "rclcpp/clock.hpp"
 
 // // ROS2 messages
 // #include "pegasus_msgs/msg/pid_statistics.hpp"
@@ -76,40 +78,21 @@ protected:
     // Check if the waypoint is already set
     bool waypoint_set_{false};
 
-    // Target position and yaw
-    // Eigen::Vector3d target_pos{Eigen::Vector3d::Zero()};
-    // double target_yaw{0.0};
-
-    //Store the previous position error
-    Eigen::Vector3d prev_pos_error_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d compute_attitude(double t);
 
     // The mass of the vehicle
     double mass_;
 
-    // The PID gains
-    Eigen::Vector3d kp_{ 4.6, 4.6, 4.6};
-    Eigen::Vector3d kd_{3.22, 3.22, 3.22};
-    //Eigen::Vector3d k_i_{Eigen::Vector3d::Zero()};
-    Eigen::Vector3d kff_{1.0, 1.0, 1.0};
-
-    double min_output_{-20.0};
-    double max_output_{20.0};
-
-    // The output of the PID controllers
-    double compute_output(double error_p, double error_d, double feed_forward_ref, double dt, unsigned int i);
-
-    // Get the attitude and thrust from the acceleration
-    Eigen::Vector4d get_attitude_thrust_from_acceleration(const Eigen::Vector3d & u, double mass, double yaw);
-
-    // // Update the statistics of the PID controllers
-    // void update_statistics(const Eigen::Vector3d & position_ref);
-
     // The target position and attitude waypoint to be at
-    Eigen::Vector3d target_pos{Eigen::Vector3d::Zero()};
-    float target_yaw{0.0f};
+    Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
+    float frequency{0.0f};
+    float yaw{0.0f};
+    float t{0.0f};
 
     // The waypoint service server that sets the position and attitude waypoints at a given target
     rclcpp::Service<pegasus_msgs::srv::Waypoint>::SharedPtr waypoint_service_{nullptr};
+
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_target_publisher_;
 };
 
 }
