@@ -93,6 +93,8 @@ protected:
     rclcpp::Service<pegasus_msgs::srv::Waypoint>::SharedPtr waypoint_service_{nullptr};
 
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_target_publisher_;
+    // Create Vector3Stamped message
+    geometry_msgs::msg::Vector3Stamped euler_msg;
 };
 
 }

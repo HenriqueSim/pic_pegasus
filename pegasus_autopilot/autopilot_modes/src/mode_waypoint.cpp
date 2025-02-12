@@ -93,14 +93,22 @@ bool WaypointMode::exit() {
 void WaypointMode::update(double dt) {
     if (t < 5.0) {
         this->controller_->set_position({0.0, 0.0, -1.5}, 0.0, dt);
-    } else {
+        // Set the vector values (roll, pitch, yaw)
+        // Set the header (timestamp and frame_id)
+        euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
+        euler_msg.header.frame_id = "base_link"; // Set appropriate frame_id
+
+        euler_msg.vector.x = 0; // roll
+        euler_msg.vector.y = 0; // pitch
+        euler_msg.vector.z = 0; // yaw
+
+        // Publish the Vector3Stamped message
+        attitude_target_publisher_->publish(euler_msg);
+    } else if (t < 6.0) {
         Eigen::Vector3d attitude_target = compute_attitude(t);
-        double T = 9.81 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
+        double T = 9.83 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
 
         this->controller_->set_attitude(attitude_target, T, dt);
-
-        // Create Vector3Stamped message
-        geometry_msgs::msg::Vector3Stamped euler_msg;
 
         // Set the header (timestamp and frame_id)
         euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
@@ -114,6 +122,9 @@ void WaypointMode::update(double dt) {
         // Publish the Vector3Stamped message
         attitude_target_publisher_->publish(euler_msg);
     }
+    else {
+        this->controller_->set_position({0.0, 0.0, -1.5}, 0.0, dt);
+    }
 
     this->t += dt; // Increment time
 }
@@ -125,12 +136,12 @@ Eigen::Vector3d WaypointMode::compute_attitude(double t) {
     Eigen::Vector3d attitude = {0.0, 0.0, 0.0};       // Set the z component to 1.0 (to ensure hover mode, cos(~=0) = 1)
 
     // Calculate the sinusoidal attitude for the specified axis
-    double sinValue = std::sin(2*M_PI*this->frequency * t);
+    // double sinValue = std::sin(2*M_PI*this->frequency * t);
 
     // Original: attitude[this->axis] = sinValue;
     // attitude[0] = 0.173 * this->axis[0] * sinValue ;
-    attitude[0] = 5 * this->axis[0] * sinValue ;
-    attitude[1] = 5 * this->axis[1] * sinValue ;
+    attitude[0] = 50 * this->axis[0];
+    attitude[1] = 50 * this->axis[1];
     return attitude;
 }
 
