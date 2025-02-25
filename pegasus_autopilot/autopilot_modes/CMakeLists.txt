@@ -75,6 +75,7 @@ add_library(${PROJECT_NAME}
   src/mode_pass_through.cpp
   src/mode_takeoff.cpp
   src/mode_waypoint.cpp
+  src/mode_systemID.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

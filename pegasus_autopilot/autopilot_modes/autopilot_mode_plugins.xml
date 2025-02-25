@@ -44,4 +44,9 @@
   <class type="autopilot::WaypointMode" base_class_type="autopilot::Mode">
       <description>Waypoint operation mode.</description>
   </class>
+
+  <!-- System Identification -->
+  <class type="autopilot::SystemIdentification" base_class_type="autopilot::Mode">
+      <description>System Identification operation mode.</description>
+  </class>
 </library>
