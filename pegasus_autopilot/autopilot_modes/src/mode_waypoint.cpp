@@ -62,8 +62,6 @@ void WaypointMode::initialize() {
     node_->declare_parameter<std::string>("autopilot.WaypointMode.set_waypoint_service", "set_waypoint"); 
     this->waypoint_service_ = this->node_->create_service<pegasus_msgs::srv::Waypoint>(node_->get_parameter("autopilot.WaypointMode.set_waypoint_service").as_string(), std::bind(&WaypointMode::waypoint_callback, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(this->node_->get_logger(), "WaypointMode initialized");
-    attitude_target_publisher_ = this->node_->create_publisher<geometry_msgs::msg::Vector3Stamped>("attitude_target", 10);
-
     // Get the mass of the vehicle (used to get the thrust from the acceleration)
     VehicleConstants vehicle_constansts = get_vehicle_constants();
     this->mass_ = vehicle_constansts.mass;
@@ -91,76 +89,23 @@ bool WaypointMode::exit() {
 }
 
 void WaypointMode::update(double dt) {
-    if (t < 5.0) {
-        this->controller_->set_position({0.0, 0.0, -1.5}, 0.0, dt);
-        // Set the vector values (roll, pitch, yaw)
-        // Set the header (timestamp and frame_id)
-        euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
-        euler_msg.header.frame_id = "base_link"; // Set appropriate frame_id
-
-        euler_msg.vector.x = 0; // roll
-        euler_msg.vector.y = 0; // pitch
-        euler_msg.vector.z = 0; // yaw
-
-        // Publish the Vector3Stamped message
-        attitude_target_publisher_->publish(euler_msg);
-    } else if (t < 6.0) {
-        Eigen::Vector3d attitude_target = compute_attitude(t);
-        double T = 9.83 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
-
-        this->controller_->set_attitude(attitude_target, T, dt);
-
-        // Set the header (timestamp and frame_id)
-        euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
-        euler_msg.header.frame_id = "base_link"; // Set appropriate frame_id
-
-        // Set the vector values (roll, pitch, yaw)
-        euler_msg.vector.x = attitude_target[0]; // roll
-        euler_msg.vector.y = attitude_target[1]; // pitch
-        euler_msg.vector.z = attitude_target[2]; // yaw
-
-        // Publish the Vector3Stamped message
-        attitude_target_publisher_->publish(euler_msg);
-    }
-    else {
-        this->controller_->set_position({0.0, 0.0, -1.5}, 0.0, dt);
-    }
-
-    this->t += dt; // Increment time
-}
-
-// Funtion to compute the attitude target to be sent to the controabs(ller based on a sinusoidal
-Eigen::Vector3d WaypointMode::compute_attitude(double t) {
-
-    // Initialize the unit vector
-    Eigen::Vector3d attitude = {0.0, 0.0, 0.0};       // Set the z component to 1.0 (to ensure hover mode, cos(~=0) = 1)
-
-    // Calculate the sinusoidal attitude for the specified axis
-    // double sinValue = std::sin(2*M_PI*this->frequency * t);
-
-    // Original: attitude[this->axis] = sinValue;
-    // attitude[0] = 0.173 * this->axis[0] * sinValue ;
-    attitude[0] = 50 * this->axis[0];
-    attitude[1] = 50 * this->axis[1];
-    return attitude;
+    this->controller_->set_position(this->target_pos, this->yaw, dt);
 }
 
 void WaypointMode::waypoint_callback(const pegasus_msgs::srv::Waypoint::Request::SharedPtr request, const pegasus_msgs::srv::Waypoint::Response::SharedPtr response) {
     
     // Set the waypoint
-    this->axis[0] = request->position[0];
-    this->axis[1] = request->position[1];
-    this->frequency = request->position[2];
+    this->target_pos[0] = request->position[0];
+    this->target_pos[1] = request->position[1];
+    this->target_pos[2] = request->position[2];
     this->yaw = request->yaw;
-    this->t = 0.0;          // Reset the time to 0.0
-
 
     // Set the waypoint flag
     this->waypoint_set_ = true;
 
     // Return true to indicate that the waypoint has been set successfully
     response->success = true;
-    RCLCPP_WARN(this->node_->get_logger(), "Axis oscilation direction set to (%f, %f, %f) with frequency %f", this->axis[0], this->axis[1], this->axis[2], this->frequency);
+    RCLCPP_WARN(this->node_->get_logger(), "Target position set to (%f, %f, %f) with yaw %f", this->target_pos[0], this->target_pos[1], this->target_pos[2], this->yaw);
 }
 
 

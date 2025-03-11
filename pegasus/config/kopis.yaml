@@ -87,7 +87,7 @@
       # ---------------------------------------------------------------------------------------------------------
       default_mode: "DisarmMode"
       # Define all the existing operation modes
-      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode"]
+      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
       # Configurations of each operating mode:
       # 1) Define the valid transitions from a given operation mode to other operation modes
       # 2) Fallback mode if something goes wrong
@@ -103,7 +103,7 @@
         arm_service: "fmu/arm"
         offboard_service: "fmu/offboard"
       TakeoffMode: 
-        valid_transitions: ["LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode"]
+        valid_transitions: ["LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
         fallback: "HoldMode"
         on_finish: "HoldMode"
         geofencing_violation_fallback: "HoldMode"
@@ -120,10 +120,15 @@
         valid_transitions: ["LandMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode"]
         fallback: "LandMode"
       WaypointMode: 
-        valid_transitions: ["LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode"]
+        valid_transitions: ["LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
         fallback: "HoldMode"
         geofencing_violation_fallback: "HoldMode"
         set_waypoint_service: "autopilot/set_waypoint"
+      SystemIdentification:
+        valid_transitions: ["HoldMode", "LandMode", "WaypointMode"]
+        fallback: "HoldMode"
+        on_finish: "HoldMode"
+        set_settings_service: "autopilot/set_settings"
       FollowTrajectoryMode: 
         valid_transitions: ["LandMode", "HoldMode", "WaypointMode", "PassThroughMode"]
         fallback: "HoldMode"

@@ -78,23 +78,15 @@ protected:
     // Check if the waypoint is already set
     bool waypoint_set_{false};
 
-    Eigen::Vector3d compute_attitude(double t);
-
     // The mass of the vehicle
     double mass_;
 
     // The target position and attitude waypoint to be at
-    Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
-    float frequency{0.0f};
+    Eigen::Vector3d target_pos{Eigen::Vector3d::Zero()};
     float yaw{0.0f};
-    float t{0.0f};
 
     // The waypoint service server that sets the position and attitude waypoints at a given target
     rclcpp::Service<pegasus_msgs::srv::Waypoint>::SharedPtr waypoint_service_{nullptr};
-
-    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_target_publisher_;
-    // Create Vector3Stamped message
-    geometry_msgs::msg::Vector3Stamped euler_msg;
 };
 
 }

@@ -46,9 +46,9 @@ bool SystemIdentification::exit() {
 void SystemIdentification::update(double dt) {
     // Get the current state of the vehicle
     State state = get_vehicle_state();
-    if (t < 5.0) {
+    if (t < 2.0) {
         // Get the vehicle to hover at the origin of the referential.
-        this->controller_->set_position({0.0, 0.0, -1.5}, 0.0, dt);
+        this->controller_->set_position({state.position[0], state.position[1], -1.5}, 0.0, dt);
 
         // Generate the Vector3Stamped message
         euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
@@ -60,9 +60,9 @@ void SystemIdentification::update(double dt) {
 
         // Publish the Vector3Stamped message
         attitude_target_publisher_->publish(euler_msg);
-    } else if (t < 6.0) {
+    } else if (t < 3.0) {
         Eigen::Vector3d attitude_target = compute_attitude(t);
-        double T = 9.83 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
+        double T = 10.5 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
 
         this->controller_->set_attitude(attitude_target, T, dt);
 
