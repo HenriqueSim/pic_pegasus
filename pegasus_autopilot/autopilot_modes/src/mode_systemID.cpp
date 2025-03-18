@@ -60,9 +60,24 @@ void SystemIdentification::update(double dt) {
 
         // Publish the Vector3Stamped message
         attitude_target_publisher_->publish(euler_msg);
-    } else if (t < 3.0) {
+    } else if (t < 4.0) {
+
+        // Calculate the position error
+        float height_error = state.position[2] - (-1.5);
+        
+
+        // Calculate the velocity error using the previous position error
+        float velocity_error = state.velocity[2] - 0.0;
+
+        float Kp = 4.0;
+        float Kd = 4.0;
+
+        //Update the previous position error
+        this->prev_height_error_ = height_error;
         Eigen::Vector3d attitude_target = compute_attitude(t);
-        double T = 10.5 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
+
+        double T = (Kp * height_error + Kd * velocity_error + 9.81 )* this->mass_/ std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
+        // double T = 10.5 * this->mass_ / std::abs(std::cos(attitude_target[0] * M_PI / 180 + attitude_target[1] * M_PI / 180));
 
         this->controller_->set_attitude(attitude_target, T, dt);
 
@@ -87,6 +102,103 @@ void SystemIdentification::update(double dt) {
     this->t += dt; // Increment time
 }
 
+// void WaypointMode::update(double dt) {
+
+//     // Get the current state of the vehicle
+//     State state = this->get_vehicle_state();
+
+//     // Calculate the position error
+//     Eigen::Vector3d position_error = this->target_pos - state.position;
+
+//     // Calculate the velocity error using the previous position error
+//     Eigen::Vector3d velocity_error = (position_error - this->prev_pos_error_) / dt;
+
+//     //Update the previous position error
+//     this->prev_pos_error_ = position_error;
+//     // Compute the desired control output acceleration for each controller
+//     Eigen::Vector3d u;
+//     const Eigen::Vector3d g(0.0, 0.0, 9.81);
+//     for(unsigned int i=0; i < 3; i++) u[i] = compute_output(position_error[i], velocity_error[i], 0.0, dt, i); // (acceleration[i] - g[i])* mass_
+    
+//     u[2] = u[2] - g(2);
+
+//     // Convert the acceleration to attitude and thrust
+//     Eigen::Vector4d attitude_thrust = get_attitude_thrust_from_acceleration(u, mass_, Pegasus::Rotations::deg_to_rad(this->target_yaw));
+
+//     // Set the control output
+//     Eigen::Vector3d attitude_target = Eigen::Vector3d(
+//         Pegasus::Rotations::rad_to_deg(attitude_thrust[0]),
+//         Pegasus::Rotations::rad_to_deg(attitude_thrust[1]),
+//         Pegasus::Rotations::rad_to_deg(attitude_thrust[2]));
+
+//     // Send the attitude and thrust to the attitude controller
+//     this->controller_->set_attitude(attitude_target, attitude_thrust[3]);
+
+//     // Set the header (timestamp and frame_id)
+//     euler_msg.header.stamp = rclcpp::Clock(RCL_SYSTEM_TIME).now();
+//     euler_msg.header.frame_id = "base_link"; // Set appropriate frame_id
+
+//     // Set the vector values (roll, pitch, yaw)
+//     euler_msg.vector.x = attitude_target[0]; // roll
+//     euler_msg.vector.y = attitude_target[1]; // pitch
+//     euler_msg.vector.z = attitude_target[2]; // yaw
+
+//     // Publish the Vector3Stamped message
+//     attitude_target_publisher_->publish(euler_msg);
+//     // // Update and publish the PID statistics
+//     // update_statistics(position);
+//     // statistics_pub_->publish(pid_statistics_msg_);
+// }
+
+// Eigen::Vector4d WaypointMode::get_attitude_thrust_from_acceleration(const Eigen::Vector3d & u, double mass, double yaw) {
+
+//     Eigen::Matrix3d RzT;
+//     Eigen::Vector3d r3d;
+//     Eigen::Vector4d attitude_thrust;
+
+//     /* Compute the normalized thrust and r3d vector */
+//     double T = mass * u.norm();
+
+//     /* Compute the rotation matrix about the Z-axis */
+//     RzT << cos(yaw), sin(yaw), 0.0,
+//           -sin(yaw), cos(yaw), 0.0,
+//                 0.0,      0.0, 1.0;
+
+//     /* Compute the normalized rotation */
+//     r3d = -RzT * u / u.norm();
+
+//     // Compute the actual attitude and setup the desired thrust to apply to the vehicle
+//     attitude_thrust << asin(-r3d[1]), atan2(r3d[0], r3d[2]), yaw, T;
+//     return attitude_thrust;
+// }
+
+// double WaypointMode::compute_output(double error_p, double error_d, double feed_forward_ref, double dt, unsigned int i) {
+
+//     // Compute the PID terms
+//     double p_term = kp_[i] * error_p;
+//     double d_term = kd_[i] * error_d;
+//     double ff_term = kff_[i] * feed_forward_ref;
+
+//     // Compute the output and saturate it
+//     double output = p_term + d_term + ff_term;      //add the integral term later
+//     double saturated_ouput = std::max(min_output_, std::min(output, max_output_));
+
+//     // // Update the statistics structure used for extracting the performance of the control loop
+//     // stats_.dt = dt;
+//     // stats_.error_p = error_p;
+//     // stats_.error_d = error_d;
+//     // stats_.integral = error_i_;
+//     // stats_.ff_ref = feed_forward_ref;
+//     // stats_.p_term = p_term;
+//     // stats_.d_term = d_term;
+//     // stats_.i_term = i_term;
+//     // stats_.ff_term = ff_term;
+//     // stats_.output_pre_sat = output;
+//     // stats_.output = saturated_ouput;
+
+//     return saturated_ouput;
+// }
+
 // Funtion to compute the attitude target to be sent to the controabs(ller based on a sinusoidal
 Eigen::Vector3d SystemIdentification::compute_attitude(double t) {
 
@@ -100,6 +212,7 @@ Eigen::Vector3d SystemIdentification::compute_attitude(double t) {
     // attitude[0] = 0.173 * this->axis[0] * sinValue ;
     attitude[0] = this->amplitude * this->axis[0];
     attitude[1] = this->amplitude * this->axis[1];
+    attitude[2] = this->amplitude * this->axis[2];
     return attitude;
 }
 

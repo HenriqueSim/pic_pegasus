@@ -36,6 +36,8 @@ protected:
     // The mass of the vehicle
     double mass_;
 
+    float prev_height_error_{0.0};
+
     // The target position and attitude waypoint to be at
     Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
     float amplitude{0.0f};
