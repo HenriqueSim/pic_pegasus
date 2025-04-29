@@ -113,15 +113,21 @@ void ROSNode::init_parameters() {
     this->declare_parameter<double>("mavlink_interface.rates.gps", 0.0);
     this->declare_parameter<double>("mavlink_interface.rates.altitude", 0.0);
     this->declare_parameter<double>("mavlink_interface.rates.imu", 0.0);
+    this->declare_parameter<double>("mavlink_interface.rates.actuator_output_status", 0.0);
     mavlink_config_.rate_attitude = this->get_parameter("mavlink_interface.rates.attitude").as_double();
     mavlink_config_.rate_position = this->get_parameter("mavlink_interface.rates.position").as_double();
     mavlink_config_.rate_gps = this->get_parameter("mavlink_interface.rates.gps").as_double();
     mavlink_config_.rate_altitude = this->get_parameter("mavlink_interface.rates.altitude").as_double();
     mavlink_config_.rate_imu = this->get_parameter("mavlink_interface.rates.imu").as_double();
+    mavlink_config_.rate_actuator_output_status = this->get_parameter("mavlink_interface.rates.actuator_output_status").as_double();
 
     // Get the vehicle id and store it
     this->declare_parameter<int>("vehicle_id", 1);
     vehicle_id_ = this->get_parameter("vehicle_id").as_int();
+
+    // Get the vehicle rotor positions (8 values: x0, y0, x1, y1, ..., x3, y3)
+    this->declare_parameter<std::vector<double>>("dynamics.motor_positions", std::vector<double>());
+    motor_positions_ = this->get_parameter("dynamics.motor_positions").as_double_array();
 
     // Log the rates
     RCLCPP_INFO_STREAM(this->get_logger(), "Telemetry rate - attitude: " << mavlink_config_.rate_attitude);
@@ -129,6 +135,7 @@ void ROSNode::init_parameters() {
     RCLCPP_INFO_STREAM(this->get_logger(), "Telemetry rate - gps: " << mavlink_config_.rate_gps);
     RCLCPP_INFO_STREAM(this->get_logger(), "Telemetry rate - altitude: " << mavlink_config_.rate_altitude);
     RCLCPP_INFO_STREAM(this->get_logger(), "Telemetry rate - imu: " << mavlink_config_.rate_imu);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Actuator output rate: " << mavlink_config_.rate_actuator_output_status);
 
     mavlink_config_.connection_address = connection_address.as_string();
     mavlink_config_.forward_ips = mavlink_forward_ips.as_string_array();
@@ -154,6 +161,9 @@ void ROSNode::init_parameters() {
     mavlink_config_.on_health_callback = std::bind(&ROSNode::on_health_callback, this, std::placeholders::_1);
     mavlink_config_.on_battery_callback = std::bind(&ROSNode::on_battery_callback, this, std::placeholders::_1);
     mavlink_config_.on_rc_callback = std::bind(&ROSNode::on_rc_callback, this, std::placeholders::_1);
+
+    // Callbacks for handling the servo motors of the vehicle
+    mavlink_config_.on_actuator_output_status_callback = std::bind(&ROSNode::on_actuator_output_status_callback, this, std::placeholders::_1);
 }
 
 /**
@@ -203,6 +213,20 @@ void ROSNode::init_publishers() {
     this->declare_parameter<std::string>("publishers.filter.rpy", "filter/rpy");
     rclcpp::Parameter rpy_topic = this->get_parameter("publishers.filter.rpy");
     filter_state_rpy_pub_ = this->create_publisher<pegasus_msgs::msg::RPY>(rpy_topic.as_string(), rclcpp::SensorDataQoS());
+
+    // ------------------------------------------------------------------------
+    // Initialize the publisher for the servo motors status
+    // ------------------------------------------------------------------------
+    this->declare_parameter<std::string>("publishers.sensors.actuator_output_status", "sensors/actuator_output_status");
+    rclcpp::Parameter actuator_topic = this->get_parameter("publishers.sensors.actuator_output_status");
+    actuator_pub_ = this->create_publisher<pegasus_msgs::msg::ActuatorOutputStatus>(actuator_topic.as_string(), rclcpp::SensorDataQoS());
+
+    // ------------------------------------------------------------------------
+    // Initialize the publisher for the vehicle's torque
+    // ------------------------------------------------------------------------
+    this->declare_parameter<std::string>("publishers.torque", "filter/torque");
+    rclcpp::Parameter torque_topic = this->get_parameter("publishers.torque");
+    torque_pub_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>(torque_topic.as_string(), rclcpp::SensorDataQoS());
 }
 
 /**
@@ -833,6 +857,70 @@ void ROSNode::on_rc_callback(const mavsdk::Telemetry::RcStatus & rc_signal) {
 
     // Publish the updated message
     status_pub_->publish(status_msg_);
+}
+
+/**
+ * @ingroup publisherMessageUpdate
+ * @brief Method that is called to update the servo motors field in the status_msg. This method
+ * publishes the most up to date message to status_pub
+ * @param actuators_output_status A mavsdk structure which contains the status of the servo motors
+ */
+void ROSNode::on_actuator_output_status_callback(const mavsdk::Telemetry::ActuatorOutputStatus & actuators_output_status) {
+
+    // Set the current timestamp
+    actuator_msg.stamp = rclcpp::Clock().now();
+
+    // Set the active actuator count
+    actuator_msg.active = static_cast<uint8_t>(actuators_output_status.active);
+
+    // Set the actuator outputs
+    // actuator_msg.actuator = actuators_output_status.actuator;
+    std::vector<float> normalized_outputs;
+
+    for (float pwm : actuators_output_status.actuator) {
+        float normalized = std::clamp((pwm - 1000.0f) / 1000.0f, 0.0f, 1.0f);
+        normalized_outputs.push_back(normalized * 100.0f);
+    }
+    actuator_msg.actuator = normalized_outputs;
+
+    // Publish the actuator message
+    actuator_pub_->publish(actuator_msg);
+
+    // Calculate the torque
+    torque_computation();
+}
+
+void ROSNode::torque_computation() {
+    // Set the current timestamp
+    torque_msg_.header.stamp = rclcpp::Clock().now();
+
+    Eigen::Vector3d total_torque(0.0, 0.0, 0.0);
+
+    for (size_t i = 0; i < motor_positions_.size() / 2; ++i) {
+        // Version 1 actuator output is raw pwm
+        // // Get the raw PWM value from the actuator message
+        // double pwm = actuator_msg.actuator[i];  // raw PWM in microseconds
+        // // Normalize PWM assuming 1000 µs = 0% thrust, 2000 µs = 100% thrust
+        // double normalized_motor_output = std::clamp((pwm - 1000.0) / 1000.0, 0.0, 1.0);
+        // Version 2 actuator output is normalized
+        // Get the normalized output in percentage from the actuator message
+        double normalized_motor_output = actuator_msg.actuator[i];
+        double thrust = thrust_curve_->percentage_to_force(normalized_motor_output);
+    
+        double x = motor_positions_[2 * i];
+        double y = motor_positions_[2 * i + 1];
+        Eigen::Vector3d r(x, y, 0.0);
+    
+        Eigen::Vector3d F(0.0, 0.0, -thrust/4);
+        total_torque += r.cross(F);
+    }
+
+    // Assign computed torque to the Vector3Stamped message
+    torque_msg_.vector.x = total_torque.x();
+    torque_msg_.vector.y = total_torque.y();
+    torque_msg_.vector.z = 0.0;
+
+    torque_pub_->publish(torque_msg_);
 }
 
 /**

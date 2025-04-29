@@ -83,6 +83,12 @@
 // Messages for the mocap fusion and visual odometry
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
+// Messages for the torque
+#include "geometry_msgs/msg/vector3_stamped.hpp"
+
+// Messages for extra vehicle data (e.g. servo motors)
+#include "pegasus_msgs/msg/actuator_output_status.hpp"
+
 #include <mavsdk/plugins/telemetry/telemetry.h>
 
 /**
@@ -240,6 +246,20 @@ public:
      * @param rc_signal_strength_percentage A float with the current rc signal strength percentage. Negative value means no RC connected
      */
     void on_rc_callback(const mavsdk::Telemetry::RcStatus & rc_signal);
+
+    /**
+     * @ingroup publisherMessageUpdate
+     * @brief Method that is called to update the motors field in the status_msg. This method
+     * publishes the most up to date message to status_pub
+     * @param actuator_output_status A mavsdk structure which contains the current values of the motors
+     */
+    void on_actuator_output_status_callback(const mavsdk::Telemetry::ActuatorOutputStatus & actuator_output_status);
+
+    /**
+     * @ingroup publisherMessageUpdate
+     * @brief Method that is called in the end of actuator_output_status_callback to compute the torque
+     */
+    void torque_computation();
 
     /**
      * @defgroup dataGetters
@@ -420,6 +440,7 @@ private:
      */
 
     int vehicle_id_{0};
+    std::vector<double> motor_positions_;
 
     /**
      * @ingroup messages
@@ -441,6 +462,12 @@ private:
      * Message corresponding to the status of the vehicle */
     pegasus_msgs::msg::Status status_msg_;
     pegasus_msgs::msg::VehicleConstants vehicle_constants_msg_;
+
+    /**
+     * @ingroup messages
+     * Message corresponding to the status of each actuator */
+    pegasus_msgs::msg::ActuatorOutputStatus actuator_msg;
+    geometry_msgs::msg::Vector3Stamped torque_msg_;
 
     /**
      *  @defgroup publishers ROS2 Publishers
@@ -470,6 +497,13 @@ private:
     rclcpp::Publisher<pegasus_msgs::msg::Status>::SharedPtr status_pub_{nullptr};
     rclcpp::Publisher<pegasus_msgs::msg::VehicleConstants>::SharedPtr vehicle_constants_pub_{nullptr};
 
+    /**
+     * @ingroup publishers
+     * @brief Publisher for the motors status
+     */
+    rclcpp::Publisher<pegasus_msgs::msg::ActuatorOutputStatus>::SharedPtr actuator_pub_{nullptr};
+
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr torque_pub_{nullptr};
     /**
      * @defgroup subscribers ROS2 Subscribers
      * This group defines all the ROS subscribers

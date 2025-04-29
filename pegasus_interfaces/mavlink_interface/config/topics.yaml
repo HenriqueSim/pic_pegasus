@@ -8,6 +8,7 @@
         gps: 10.0
         altitude: 10.0
         imu: 30.0
+        actuator_output_status: 500.0
     subscribers:
       control:
         # High-level control (position, body velocity and inertial acceleration)

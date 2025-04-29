@@ -176,12 +176,16 @@ void MavlinkNode::initialize_telemetry() {
     this->telemetry_->subscribe_battery(config_.on_battery_callback);
     this->telemetry_->subscribe_rc_status(config_.on_rc_callback);
 
+    // Subscribe to the actuator_output_status of the vehicle
+    this->telemetry_->subscribe_actuator_output_status(config_.on_actuator_output_status_callback);
+
     // Set the rates at which to receive the telemetry data
     this->telemetry_->set_rate_attitude_quaternion(config_.rate_attitude);
     this->telemetry_->set_rate_position_velocity_ned(config_.rate_position);
     this->telemetry_->set_rate_gps_info(config_.rate_gps);
     this->telemetry_->set_rate_altitude(config_.rate_altitude);
     this->telemetry_->set_rate_imu(config_.rate_imu);
+    this->telemetry_->set_rate_actuator_output_status(config_.rate_actuator_output_status);
 }
 
 /**

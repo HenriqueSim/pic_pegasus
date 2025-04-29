@@ -84,6 +84,7 @@ public:
         double rate_gps;
         double rate_altitude;
         double rate_imu;
+        double rate_actuator_output_status;
 
         std::function<void(uint8_t)> on_discover_callback{nullptr};        // Callback to be called whenever a new system is discovered, which receives the vehicle id
         std::function<void()> on_initialize_telemetry_callback{nullptr};   // Callback to be called whenever telemetry coming from the vehicle is initialized
@@ -107,6 +108,7 @@ public:
         std::function<void(const mavsdk::Telemetry::Health &)> on_health_callback{nullptr};                         // Callback to handle HEARTBEAT mavlink messages - health of the vehicle
         std::function<void(const mavsdk::Telemetry::Battery &)> on_battery_callback{nullptr};                       // Callback to handle BATTERY_STATUS mavlink messages - battery status of the vehicle
         std::function<void(const mavsdk::Telemetry::RcStatus &)> on_rc_callback{nullptr};                           // Callback to handle RC_CHANNELS mavlink messages - RC channels of the vehicle
+        std::function<void(const mavsdk::Telemetry::ActuatorOutputStatus &)> on_actuator_output_status_callback{nullptr};        // Callback to handle ACTUATOR_OUTPUT_STATUS mavlink messages - Motors of the vehicle
     };
     
     /**
