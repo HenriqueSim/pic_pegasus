@@ -98,6 +98,8 @@ void PIDController::initialize() {
     attitude_rate_publisher_ = node_->create_publisher<pegasus_msgs::msg::ControlAttitude>(node_->get_parameter("autopilot.PIDController.publishers.control_attitude_rate").as_string(), rclcpp::SensorDataQoS());
     statistics_pub_ = node_->create_publisher<pegasus_msgs::msg::PidStatistics>(node_->get_parameter("autopilot.PIDController.pid_debug_topic").as_string(), 1);
 
+
+
     // Log that the PIDController was initialized
     RCLCPP_INFO(node_->get_logger(), "PIDController initialized");
 }

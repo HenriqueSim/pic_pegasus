@@ -22,6 +22,12 @@ def generate_launch_description():
         'autopilot_yaml', 
         default_value=os.path.join(get_package_share_directory('autopilot'), 'config', 'autopilot.yaml'),
         description='The configurations for the autopilot to run')
+    # Define the trajectory file to use for the drone
+    trajectory_file_arg = DeclareLaunchArgument(
+        'trajectory_file',
+        default_value=os.path.join(get_package_share_directory('autopilot'), 'config', 'polynomial_trajectory.yaml'),
+        description='The directory where coefficients for the polynomial trajectory file are defined'
+    )
 
     # Create the actual autopilot node
     autopilot_node = Node(
@@ -36,6 +42,8 @@ def generate_launch_description():
         parameters=[
             # Pass the file which contains the topics configuration and rates for telemetry
             LaunchConfiguration('autopilot_yaml'),
+            # Pass the file which contains the trajectory coefficients
+            LaunchConfiguration('trajectory_file'),
             # Pass the connection URL (udp, tcp or serial)
             # as well as the mavlink forward ips (for example for operating QGroundControl in parallel)
             {
@@ -51,5 +59,6 @@ def generate_launch_description():
         id_arg,
         namespace_arg,
         autopilot_yaml_arg,
+        trajectory_file_arg,
         # Launch files
         autopilot_node])

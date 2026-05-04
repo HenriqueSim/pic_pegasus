@@ -48,10 +48,12 @@
 #include "console_node.hpp"
 #include "pegasus_utils/rotations.hpp"
 
-ConsoleNode::ConsoleNode(const std::string vehicle_namespace, const unsigned int vehicle_id=1) : rclcpp::Node("pegasus_console") {
+ConsoleNode::ConsoleNode(const std::string vehicle_namespace, const unsigned int vehicle_id=7) : rclcpp::Node("pegasus_console") {
     
     // Initialize the vehicle namespace
-    vehicle_namespace_ = std::string(vehicle_namespace + std::to_string(vehicle_id)); 
+    vehicle_namespace_ = std::string(vehicle_namespace + std::to_string(vehicle_id));
+    std::cout << "Vehicle namespace: " << vehicle_namespace_ << std::endl;
+    std::cout << "Vehicle ID: " << vehicle_id << std::endl;
 
     // Initialize the subscribers, services and publishers
     initialize_publishers();
@@ -94,8 +96,12 @@ ConsoleNode::~ConsoleNode() {}
 
 void ConsoleNode::initialize_subscribers() {
 
+    // ROS_WARN vehicle namespace and topic names for the subscribers (note: this is a trick due to the parameter reading limitation in ROS2, we need to setup the vehicle namespace when launching the node as a normal c++ program)
+    RCLCPP_WARN(this->get_logger(), "Vehicle namespace: %s", vehicle_namespace_.c_str());
+
     this->declare_parameter<std::string>("console.subscribers.onboard.status", vehicle_namespace_ + std::string("/fmu/status"));
-    this->declare_parameter<std::string>("console.subscribers.onboard.state", vehicle_namespace_ + std::string("/fmu/filter/state"));
+    this->declare_parameter<std::string>("console.subscribers.onboard.state_filter", vehicle_namespace_ + std::string("/fmu/filter/state"));
+    this->declare_parameter<std::string>("console.subscribers.onboard.state_mocap", std::string("/mocap/pose_enu/drone9"));
     this->declare_parameter<std::string>("console.subscribers.autopilot.status", vehicle_namespace_ + std::string("/autopilot/status"));
 
     // Status of the vehicle
@@ -105,8 +111,13 @@ void ConsoleNode::initialize_subscribers() {
     
     // Subscribe to the state of the vehicle given by its internal EKF filter
     filter_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        this->get_parameter("console.subscribers.onboard.state").as_string(), 
+        this->get_parameter("console.subscribers.onboard.state_filter").as_string(), 
         rclcpp::SensorDataQoS(), std::bind(&ConsoleNode::state_callback, this, std::placeholders::_1));
+    
+    // Subscribe to the state of the vehicle given by its internal EKF filter
+    filter_mocap_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+        this->get_parameter("console.subscribers.onboard.state_mocap").as_string(), 
+        rclcpp::SensorDataQoS(), std::bind(&ConsoleNode::state_mocap_callback, this, std::placeholders::_1));
 
     // Status of the autopilot
     autopilot_status_sub_ = this->create_subscription<pegasus_msgs::msg::AutopilotStatus>(
@@ -784,6 +795,60 @@ void ConsoleNode::state_callback(const nav_msgs::msg::Odometry::ConstSharedPtr m
     console_ui_->state_.angular_velocity[0] = msg->twist.twist.angular.x;
     console_ui_->state_.angular_velocity[1] = msg->twist.twist.angular.y;
     console_ui_->state_.angular_velocity[2] = msg->twist.twist.angular.z;
+}
+
+void ConsoleNode::state_mocap_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
+
+    // Convert the position expressed in ENU {East-North-Up} to NED {North-East-Down}
+    // Eigen::Vector3d p_ned = Pegasus::Frames::transform_vect_inertial_enu_ned(Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z));
+
+    // // Convert the orientation of a F.L.U vehicle with respect to ENU {East-North-Up} to
+    // // F.R.D with respect to NED {North-East-Down}
+    // Eigen::Quaterniond orientation_flu_enu;
+    // orientation_flu_enu.x() = msg->pose.orientation.x;
+    // orientation_flu_enu.y() = msg->pose.orientation.y;
+    // orientation_flu_enu.z() = msg->pose.orientation.z;
+    // orientation_flu_enu.w() = msg->pose.orientation.w;
+
+    // Eigen::Quaterniond q_ned = Pegasus::Frames::rot_body_to_inertial(Eigen::Quaternion<double>(orientation_flu_enu));
+
+    // // ENU→NED rotation (proper rotation, det = +1)
+    // static const Eigen::Matrix3d R_ENU_to_NED = (Eigen::Matrix3d() <<
+    //     0, 1, 0,
+    //     1, 0, 0,
+    //     0, 0, -1).finished();
+    
+    // static const Eigen::Matrix3d R_BODY_NED_to_ENU = (Eigen::Matrix3d() <<
+    // 1, 0, 0,
+    // 0, -1, 0,
+    // 0, 0, -1).finished();
+
+    // // --- Position ---
+    // Eigen::Vector3d p_enu(msg->pose.position.x,
+    //                       msg->pose.position.y,
+    //                       msg->pose.position.z);
+    // Eigen::Vector3d p_ned = R_ENU_to_NED * p_enu;
+
+    // // --- Orientation ---
+    // Eigen::Quaterniond q_enu(msg->pose.orientation.w,
+    //                          msg->pose.orientation.x,
+    //                          msg->pose.orientation.y,
+    //                          msg->pose.orientation.z);
+    // Eigen::Matrix3d R_enu = q_enu.toRotationMatrix();
+    // Eigen::Matrix3d R_ned = R_ENU_to_NED * R_enu * R_BODY_NED_to_ENU;
+    // Eigen::Quaterniond q_ned(R_ned);
+    // // q_ned.normalize();
+
+
+    // Update the state of the vehicle
+    // console_ui_->state_.position = {p_ned(0), p_ned(1), p_ned(2)};
+    // // Update the current attitude
+    // console_ui_->state_.attitude_euler = Pegasus::Rotations::quaternion_to_euler(q_ned);
+
+    // // Convert the attitude from rad to deg
+    // console_ui_->state_.attitude_euler[0] = Pegasus::Rotations::rad_to_deg(console_ui_->state_.attitude_euler[0]);
+    // console_ui_->state_.attitude_euler[1] = Pegasus::Rotations::rad_to_deg(console_ui_->state_.attitude_euler[1]);
+    // console_ui_->state_.attitude_euler[2] = Pegasus::Rotations::rad_to_deg(console_ui_->state_.attitude_euler[2]);
 }
 
 void ConsoleNode::autopilot_status_callback(const pegasus_msgs::msg::AutopilotStatus::ConstSharedPtr msg) {

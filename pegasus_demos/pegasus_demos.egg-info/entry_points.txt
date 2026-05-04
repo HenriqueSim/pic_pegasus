@@ -1,0 +1,3 @@
+[console_scripts]
+pegasus_demos = pegasus_demos.demo:main
+

@@ -49,4 +49,14 @@
   <class type="autopilot::SystemIdentification" base_class_type="autopilot::Mode">
       <description>System Identification operation mode.</description>
   </class>
+
+  <!-- Drag Identification -->
+  <class type="autopilot::DragIdentification" base_class_type="autopilot::Mode">
+      <description>Drag Identification operation mode.</description>
+  </class>
+
+  <!-- Through Window -->
+  <class type="autopilot::ThroughWindowMode" base_class_type="autopilot::Mode">
+    <description>Through Window operation mode.</description>
+  </class>
 </library>

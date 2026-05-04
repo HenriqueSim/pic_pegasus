@@ -1,0 +1,4 @@
+float64 latitude # The latitude of the home position
+float64 longitude # The longitude of the home position
+float64 altitude # The altitude of the home position
+---

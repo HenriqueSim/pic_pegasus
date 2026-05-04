@@ -16,11 +16,11 @@
     # ----------------------------------------------------------------------------------------------------------
     autopilot:
       # Update rate
-      rate: 33.0 # Hz
+      rate: 80.0 # Hz
       # ----------------------------------------------------------------------------------------------------------
       # Definition of the controller that will perform the tracking of references of the different operation modes
       # ----------------------------------------------------------------------------------------------------------
-      controller: "PIDController"
+      controller: "MellingerController"
       # Configurations needed by the PX4 controller
       OnboardController:
         publishers:
@@ -39,7 +39,7 @@
         gains:
           kp: [5.0, 5.0, 3.3]               # Proportional gain
           kd: [4.0, 4.0, 5.0]               # Derivative gain
-          ki: [0.10, 0.10, 0.25]            # Integral gain
+          ki: [0.20, 0.20, 0.25]            # Integral gain
           min_output: [-20.0, -20.0, -20.0] # Minimum output of each PID
           max_output: [ 20.0,  20.0,  20.0]
       MellingerController:
@@ -51,8 +51,20 @@
           kp: [5.26, 5.26, 5.26]    # Proportional gain
           kd: [4.0, 4.0, 4.0]       # Derivative gain
           ki: [0.0, 0.0, 0.0]       # Integral gain
-          #ki: [0.1, 0.1, 0.25]      # Integral gain
+          # ki: [0.1, 0.1, 0.25]      # Integral gain
           kr: [3.0, 3.0, 3.0]       # Attitude error gain
+          min_output: [-100.0, -100.0, -100.0]  # Minimum output of each PID
+          max_output: [ 100.0,  100.0,  100.0]  # Maximum output of each PID
+      YawLessController:
+        publishers:
+          control_attitude: "fmu/in/force/attitude"
+          control_attitude_rate: "fmu/in/force/attitude_rate"
+          debug_topic: "autopilot/statistics/yawless"
+        gains:
+          kp: [15.0, 15.0, 3.3]    # Proportional gain
+          kd: [5.0, 5.0, 5.0]    # Derivative gain
+          ki: [0.0, 0.0, 0.0]    # Integral gain
+          kr: [6.5, 6.5, 6.5]    # Attitude error gain
           min_output: [-100.0, -100.0, -100.0]  # Minimum output of each PID
           max_output: [ 100.0,  100.0,  100.0]  # Maximum output of each PID
       # ----------------------------------------------------------------------------------------------------------
@@ -87,7 +99,7 @@
       # ---------------------------------------------------------------------------------------------------------
       default_mode: "DisarmMode"
       # Define all the existing operation modes
-      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
+      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "OnboardLandMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification"]
       # Configurations of each operating mode:
       # 1) Define the valid transitions from a given operation mode to other operation modes
       # 2) Fallback mode if something goes wrong
@@ -103,24 +115,29 @@
         arm_service: "fmu/arm"
         offboard_service: "fmu/offboard"
       TakeoffMode: 
-        valid_transitions: ["LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
+        valid_transitions: ["OnboardLandMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "DragIdentification"]
         fallback: "HoldMode"
         on_finish: "HoldMode"
         geofencing_violation_fallback: "HoldMode"
         takeoff_altitude: -1.5 # m (NED)
         set_takeoff_altitude_service: "autopilot/set_takeoff"
-      LandMode: 
+      OnboardLandMode: 
         valid_transitions: ["DisarmMode", "ArmMode", "TakeoffMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode"]
         fallback: "HoldMode"
         on_finish: "DisarmMode"
-        land_speed: 0.2 # m/s
+        land_service: "fmu/land"
+      LandMode: 
+        valid_transitions: ["DisarmMode", "ArmMode", "TakeoffMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "DragIdentification"]
+        fallback: "HoldMode"
+        on_finish: "DisarmMode"
+        land_speed: 0.7 # m/s
         land_detected_treshold: 0.1 # m/s
-        countdown_to_disarm: 3.0 # s
-      HoldMode: 
-        valid_transitions: ["LandMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode"]
-        fallback: "LandMode"
+        countdown_to_disarm: 2.0 # s
+      HoldMode:
+        valid_transitions: ["OnboardLandMode", "LandMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "DragIdentification"]
+        fallback: "OnboardLandMode"
       WaypointMode: 
-        valid_transitions: ["LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification"]
+        valid_transitions: ["OnboardLandMode", "LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification"]
         fallback: "HoldMode"
         geofencing_violation_fallback: "HoldMode"
         set_waypoint_service: "autopilot/set_waypoint"
@@ -129,6 +146,15 @@
         fallback: "HoldMode"
         on_finish: "HoldMode"
         set_settings_service: "autopilot/set_settings"
+      ThroughWindowMode:
+        valid_transitions: ["LandMode", "HoldMode", "WaypointMode"]
+        fallback: "HoldMode"
+        on_finish: "HoldMode"
+        set_window_service: "autopilot/set_window"
+      DragIdentification:
+        valid_transitions: ["TakeoffMode", "HoldMode", "LandMode", "WaypointMode"]
+        fallback: "HoldMode"
+        on_finish: "HoldMode"
       FollowTrajectoryMode: 
         valid_transitions: ["LandMode", "HoldMode", "WaypointMode", "PassThroughMode"]
         fallback: "HoldMode"
@@ -145,7 +171,8 @@
         control_attitude_rate: "fmu/in/force/attitude_rate"
         status: "autopilot/status"
       subscribers:
-        state: "fmu/filter/state"
+        state_mocap: "/mocap/pose_enu/drone9"
+        state_filter: "fmu/filter/state"
         status: "fmu/status"
         constants: "fmu/constants"
       services:

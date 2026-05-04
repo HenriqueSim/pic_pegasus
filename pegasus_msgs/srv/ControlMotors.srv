@@ -1,0 +1,4 @@
+uint32 index
+float64 value
+---
+uint8 success

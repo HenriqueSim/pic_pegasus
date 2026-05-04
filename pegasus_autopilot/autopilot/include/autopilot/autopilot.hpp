@@ -59,6 +59,7 @@
 
 // ROS 2 messages
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "pegasus_msgs/msg/status.hpp"
 #include "pegasus_msgs/msg/vehicle_constants.hpp"
 #include "pegasus_msgs/msg/autopilot_status.hpp"
@@ -74,6 +75,8 @@
 #include "geofencing.hpp"
 #include "controller.hpp"
 #include "trajectory_manager.hpp"
+
+#include "pegasus_utils/frames.hpp"
 
 namespace autopilot {
 
@@ -118,6 +121,7 @@ private:
 
     // Subscriber callbacks to get the current state of the vehicle
     void state_callback(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
+    void state_mocap_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg);
     void status_callback(const pegasus_msgs::msg::Status::ConstSharedPtr msg);
     void vehicle_constants_callback(const pegasus_msgs::msg::VehicleConstants::ConstSharedPtr msg);
 
@@ -129,9 +133,12 @@ private:
 
     // ROS2 publishers
     rclcpp::Publisher<pegasus_msgs::msg::AutopilotStatus>::SharedPtr status_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr state_filter_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr state_mocap_publisher_;
     
     // ROS2 subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr state_subscriber_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr state_mocap_subscriber_;
     rclcpp::Subscription<pegasus_msgs::msg::Status>::SharedPtr status_subscriber_;
     rclcpp::Subscription<pegasus_msgs::msg::VehicleConstants>::SharedPtr vehicle_constants_subscriber_;
 
@@ -184,6 +191,29 @@ private:
     std::unique_ptr<pluginlib::ClassLoader<autopilot::Controller>> controller_loader_;
     std::unique_ptr<pluginlib::ClassLoader<autopilot::Geofencing>> geofencing_loader_;
     std::unique_ptr<pluginlib::ClassLoader<autopilot::TrajectoryManager>> trajectory_manager_loader_;
+
+    // Variables for mocap velocity estimation
+    bool first_mocap_msg_ = true;
+    rclcpp::Time prev_mocap_time_;
+    Eigen::Vector3d prev_mocap_pos_{0.0, 0.0, 0.0};
+    Eigen::Vector3d filtered_mocap_vel_{0.0, 0.0, 0.0};
+    // Median filter variables
+    size_t median_window_size_ = 5; // A window of 5 is usually great for mocap outliers
+    std::deque<Eigen::Vector3d> raw_vel_window_;
+    
+    // Low-pass filter cutoff frequency (Hz)
+    // Tune this based on your noise levels (e.g., 5.0 Hz to 10.0 Hz)
+    double velocity_lpf_cutoff_freq_ = 5.0;
+
+    // Helper function for 2nd order observer
+    // void update_velocity_observer(const Eigen::Vector3d& p_ned_measured, const rclcpp::Time& current_time);
+    Eigen::Vector3d update_velocity_observer(const Eigen::Vector3d& p_ned_measured, const rclcpp::Time& current_time);
+
+    // Luenberger Observer Variables
+    Eigen::Vector3d observer_p_{0.0, 0.0, 0.0};
+    Eigen::Vector3d observer_v_{0.0, 0.0, 0.0};
+    double observer_cutoff_freq_ = 2.0; // Hz
+    double observer_damping_ = 0.707;   //
 };
 
 } // namespace autopilot

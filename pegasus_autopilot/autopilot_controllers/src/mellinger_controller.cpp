@@ -181,7 +181,7 @@ void MellingerController::set_position(const Eigen::Vector3d& position, const Ei
     Eigen::Vector3d w_des;
     w_des(0) =  mass_ / T * Y_b_des.dot(jerk);
     w_des(1) = -mass_ / T * X_b_des.dot(jerk);
-    w_des(2) = yaw_rate_rad * Z_b_des[2];
+    w_des(2) = -mass_/T * Z_b_des.transpose().dot(Y_C) * X_b_des.transpose().dot(jerk) / Y_C.cross(Z_b_des).norm(); // + yaw_rate_rad * Z_b_des[2]
 
     // Compute the target attitude rate
     Eigen::Vector3d attitude_rate = w_des - (kr_ * e_R);
@@ -230,7 +230,7 @@ void MellingerController::update_statistics(const Eigen::Vector3d & position_ref
         // For each rotation axis [x, y, z]
         // Fill in the nonlinear errors 
         statistics_msg_.rotation_error[i] = rotation_error[i];
-        statistics_msg_.desired_angular_rate[i] = desired_angular_rate[i];
+        statistics_msg_.desired_angular_rate[i] = Pegasus::Rotations::rad_to_deg(desired_angular_rate[i]);
 
         // Fill in the attitude rate referenced sent to the inner-loop
         statistics_msg_.attitude_rate_reference[i] = attitude_rate_reference[i];

@@ -50,6 +50,13 @@ def generate_launch_description():
         default_value=os.path.join(get_package_share_directory('pegasus'), 'config', 'kopis.yaml'),
         description='The directory where the drone parameters such as mass, thrust curve, etc. are defined')
     
+    # Define the trajectory file to use for the drone
+    trajectory_file_arg = DeclareLaunchArgument(
+        'trajectory_file',
+        default_value=os.path.join(get_package_share_directory('pegasus'), 'config', 'polynomial_trajectory.yaml'),
+        description='The directory where coefficients for the polynomial trajectory file are defined'
+    )
+    
     # ----------------------------------------
     # ---- DECLARE THE NODES TO LAUNCH -------
     # ----------------------------------------
@@ -88,6 +95,7 @@ def generate_launch_description():
             'id': LaunchConfiguration('vehicle_id'),
             'namespace': LaunchConfiguration('vehicle_ns'),
             'autopilot_yaml': LaunchConfiguration('drone_params'),
+            'trajectory_file': LaunchConfiguration('trajectory_file'),
         }.items(),
     )
 
@@ -101,8 +109,19 @@ def generate_launch_description():
         mav_connection_arg,
         mavlink_forward_arg,
         drone_params_file_arg,
+        trajectory_file_arg,
         # Launch files
         mavlink_interface_launch_file,
         autopilot_launch_file,
         mocap_launch_file
     ])
+
+    # return LaunchDescription([
+    #     # Launch arguments
+    #     id_arg, 
+    #     namespace_arg, 
+    #     drone_params_file_arg,
+    #     trajectory_file_arg,
+    #     # Launch files
+    #     autopilot_launch_file,
+    # ])

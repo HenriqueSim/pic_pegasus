@@ -2,7 +2,7 @@
   ros__parameters:
     autopilot:
       # Update rate
-      rate: 50.0 # Hz
+      rate: 150.0 # Hz
       # ----------------------------------------------------------------------------------------------------------
       # Definition of the controller that will perform the tracking of references of the different operation modes
       # ----------------------------------------------------------------------------------------------------------
@@ -38,6 +38,24 @@
           kr: [5.0, 5.0, 5.0]    # Attitude error gain
           min_output: [-100.0, -100.0, -100.0]  # Minimum output of each PID
           max_output: [ 100.0,  100.0,  100.0]  # Maximum output of each PID
+      YawLessController:
+        publishers:
+          control_attitude: "fmu/in/force/attitude"
+          control_attitude_rate: "fmu/in/force/attitude_rate"
+          debug_topic: "autopilot/statistics/yawless"
+        gains:
+          kp: [10.0, 10.0, 10.0]    # Proportional gain
+          kd: [9.0, 9.0, 9.0]    # Derivative gain
+          ki: [0.2, 0.2, 0.1]    # Integral gain
+          kr: [5.0, 5.0, 5.0]    # Attitude error gain
+          min_output: [-100.0, -100.0, -100.0]  # Minimum output of each PID
+          max_output: [ 100.0,  100.0,  100.0]  # Maximum output of each PID
+      # ========== Predictive Control Configuration ==========
+      predictive_control:
+        enabled: false                    # Enable/disable predictive control
+        delay: 0.010                      # Control delay in seconds
+        dt_control: 0.005                 # Control update interval (200 Hz)
+        inertia: [0.029125, 0.029125, 0.055225]  # Moment of inertia [Jxx, Jyy, Jzz] in kg⋅m²
       # ----------------------------------------------------------------------------------------------------------
       # Definition of the geofencing mechanism that will keep the vehicle in safe places
       # ----------------------------------------------------------------------------------------------------------
@@ -123,6 +141,7 @@
         control_attitude_rate: "fmu/in/force/attitude_rate"
         status: "autopilot/status"
       subscribers:
+        state_mocap: "mocap/pose_enu/drone9"
         state: "fmu/filter/state"
         status: "fmu/status"
         constants: "fmu/constants"

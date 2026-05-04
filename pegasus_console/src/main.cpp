@@ -57,7 +57,7 @@ int main(int argc, char * argv[]) {
 
     // Default vehicle id
     int ch;
-    unsigned int vehicle_id = 1;
+    unsigned int vehicle_id = 9;
     std::string vehicle_namespace = "/drone";
 
     while((ch = getopt(argc, argv, "i:n:")) != -1) {

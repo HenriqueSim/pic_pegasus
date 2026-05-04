@@ -64,6 +64,7 @@ find_package(pegasus_utils REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 add_library(${PROJECT_NAME} 
   src/mode_arm.cpp
@@ -76,6 +77,8 @@ add_library(${PROJECT_NAME}
   src/mode_takeoff.cpp
   src/mode_waypoint.cpp
   src/mode_systemID.cpp
+  src/mode_dragID.cpp
+  src/mode_through_window.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -92,6 +95,7 @@ set(dependencies
   pegasus_utils
   nav_msgs
   pluginlib
+  visualization_msgs
 )
 
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})

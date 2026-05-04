@@ -15,4 +15,9 @@
         <description>Multirotor controller proposed by Mellinger and Kumar.</description>
     </class>
 
+    <!-- YawlessController -->
+    <class type="autopilot::YawLessController" base_class_type="autopilot::Controller">
+        <description>Yawless Multirotor controller.</description>
+    </class>
+
 </library>

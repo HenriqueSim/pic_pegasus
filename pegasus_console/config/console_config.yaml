@@ -6,7 +6,8 @@
           status: "autopilot/status"
         onboard:
           status: "fmu/status"
-          state: "fmu/filter/state"
+          state_mocap: "mocap/pose_enu/drone9"
+          state_filter: "fmu/filter/state"
       publishers:
         onboard:
           attitude_rate: "fmu/in/throtle/attitude_rate"

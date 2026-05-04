@@ -14,7 +14,7 @@ def generate_launch_description():
     # ----------------------------------------
     
     # Namespace and ID of the vehicle as parameter received by the launch file
-    id_arg = DeclareLaunchArgument('vehicle_id', default_value='1', description='Drone ID in the network')
+    id_arg = DeclareLaunchArgument('vehicle_id', default_value='7', description='Drone ID in the network')
     namespace_arg = DeclareLaunchArgument('vehicle_ns', default_value='drone', description='Namespace to append to every topic and node name')
 
     # Get the name of the .yaml configuration file either from the package or an external source

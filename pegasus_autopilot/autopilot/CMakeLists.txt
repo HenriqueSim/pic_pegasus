@@ -62,12 +62,14 @@ find_package(nav_msgs REQUIRED)
 find_package(pegasus_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(pegasus_utils REQUIRED)
 
 set(dependencies
   rclcpp
   "pluginlib"
   nav_msgs
   pegasus_msgs
+  pegasus_utils
 )
 
 # Define the executable

@@ -139,6 +139,7 @@ namespace vrpn_client_ros {
     
     if (!tracker->pose_pub_) {
       tracker->pose_pub_ = nh->create_publisher<geometry_msgs::msg::PoseStamped>("/mocap/pose_enu/" + tracker->tracker_name, 1); //
+      RCLCPP_INFO_STREAM(nh->get_logger(), "Publishing VRPN tracker " << tracker->tracker_name << " on topic /mocap/pose_enu/" << tracker->tracker_name);
     }
 
     if (tracker->use_server_time_) {
@@ -156,6 +157,8 @@ namespace vrpn_client_ros {
     tracker->pose_msg_.pose.orientation.y = tracker_pose.quat[1];
     tracker->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
     tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
+    // WARNING WITH TOPIC NAME
+    RCLCPP_WARN_STREAM_ONCE(nh->get_logger(), "Publishing first message for VRPN tracker " << tracker->tracker_name << " on topic /mocap/pose_enu/" << tracker->tracker_name);
 
     tracker->pose_pub_->publish(tracker->pose_msg_);
   }

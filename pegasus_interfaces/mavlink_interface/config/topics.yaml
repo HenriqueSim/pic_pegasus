@@ -3,12 +3,12 @@
     mavlink_interface:
       # Defines the rates for the onboard to send the data through mavlink
       rates:
-        attitude: 50.0
-        position: 30.0
-        gps: 10.0
-        altitude: 10.0
-        imu: 30.0
-        actuator_output_status: 500.0
+        attitude: 100.0
+        position: 100.0
+        gps: 1.0
+        altitude: 1.0
+        imu: 1.0
+        actuator_output_status: 1.0
     subscribers:
       control:
         # High-level control (position, body velocity and inertial acceleration)

@@ -54,6 +54,7 @@
 
 // ROS2 messages supported
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "pegasus_msgs/msg/status.hpp"
 #include "pegasus_msgs/msg/autopilot_status.hpp"
 #include "pegasus_msgs/msg/control_attitude.hpp"
@@ -74,6 +75,8 @@
 #include "pegasus_msgs/srv/add_circle.hpp"
 #include "pegasus_msgs/srv/add_lemniscate.hpp"
 #include "pegasus_msgs/srv/reset_path.hpp"
+
+#include "pegasus_utils/frames.hpp"
 
 class ConsoleNode : public rclcpp::Node {
 
@@ -123,6 +126,7 @@ protected:
 
     // Callbacks for the ROS2 subscribers
     void state_callback(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
+    void state_mocap_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg);
     void status_callback(const pegasus_msgs::msg::Status::ConstSharedPtr msg);
     void autopilot_status_callback(const pegasus_msgs::msg::AutopilotStatus::ConstSharedPtr msg);
 
@@ -149,6 +153,7 @@ protected:
     // ROS2 subscribers
     rclcpp::Subscription<pegasus_msgs::msg::Status>::SharedPtr status_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr filter_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr filter_mocap_sub_;
     rclcpp::Subscription<pegasus_msgs::msg::AutopilotStatus>::SharedPtr autopilot_status_sub_;
 
     // ROS2 publishers

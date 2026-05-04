@@ -1,0 +1,13 @@
+package.xml
+setup.cfg
+setup.py
+pegasus_demos/__init__.py
+pegasus_demos/demo.py
+pegasus_demos.egg-info/PKG-INFO
+pegasus_demos.egg-info/SOURCES.txt
+pegasus_demos.egg-info/dependency_links.txt
+pegasus_demos.egg-info/entry_points.txt
+pegasus_demos.egg-info/requires.txt
+pegasus_demos.egg-info/top_level.txt
+pegasus_demos.egg-info/zip-safe
+resource/pegasus_demos

@@ -72,6 +72,7 @@ add_library(${PROJECT_NAME}
   src/onboard_controller.cpp
   src/pid_controller.cpp
   src/mellinger_controller.cpp
+  src/yawless_controller.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

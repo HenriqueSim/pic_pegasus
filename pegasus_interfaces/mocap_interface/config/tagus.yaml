@@ -5,4 +5,4 @@
     frame_id: "world"
     use_server_time: false
     refresh_tracker_frequency: 0.2
-    update_frequency: 30.0
+    update_frequency: 100.0
