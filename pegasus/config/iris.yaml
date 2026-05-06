@@ -63,7 +63,7 @@
           control_attitude_rate: "fmu/in/force/attitude_rate"
           debug_topic: "autopilot/statistics/yawless"
         gains:
-          kp: [10.0, 10.0, 3.3]    # Proportional gain
+          kp: [10.0, 10.0, 8.0]    # Proportional gain
           kd: [5.0, 5.0, 5.0]    # Derivative gain
           ki: [0.0, 0.0, 0.0]    # Integral gain
           kr: [6.5, 6.5, 6.5]    # Attitude error gain
@@ -179,7 +179,8 @@
         control_attitude_rate: "fmu/in/force/attitude_rate"
         status: "autopilot/status"
       subscribers:
-        state: "fmu/filter/state"
+        # state: "fmu/filter/state"
+        state_filter: "simulator/state"
         status: "fmu/status"
         constants: "fmu/constants"
       services:

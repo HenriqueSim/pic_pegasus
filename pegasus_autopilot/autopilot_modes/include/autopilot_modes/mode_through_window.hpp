@@ -1,224 +1,170 @@
+#pragma once
+
 #include <autopilot/mode.hpp>
 #include "pegasus_msgs/srv/through_window.hpp"
-#include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "std_msgs/msg/float64.hpp"
-#include "pegasus_msgs/msg/yaw_less_statistics.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include <sstream>
+#include <Eigen/Dense>
 #include <cmath>
-#include <deque>
-
-
-static constexpr double RAD2DEG = 180.0 / 3.14159265358979323846;
+#include <vector>
 
 namespace autopilot {
 
 class ThroughWindowMode : public autopilot::Mode {
 
 public:
+
     ~ThroughWindowMode();
 
+    // ── Mandatory Mode interface ──────────────────────────────────────────
     void initialize() override;
-    bool enter() override;
-    bool exit() override;
+    bool enter()      override;
+    bool exit()       override;
     void update(double dt) override;
 
-protected:
-    // Enum for constraint types
-    enum ConstraintType { Position, Acceleration, Velocity };
+private:
 
-    // Struct to define trajectory constraints
-    struct Constraint {
-        double time;
-        ConstraintType type;
-        double value;
-    };
+    // ── Trajectory evaluation ─────────────────────────────────────────────
 
-    // ========== PREDICTIVE CONTROL ADDITIONS ==========
-    
-    // Control action structure for queue
-    struct ControlAction {
-        Eigen::Vector3d a_des;      // Desired acceleration (input to position controller)
-        Eigen::Vector3d attitude_rate; // Desired attitude rate (torque equivalent)
-        double thrust;              // Thrust magnitude
-        
-        ControlAction() : 
-            a_des(Eigen::Vector3d::Zero()), 
-            attitude_rate(Eigen::Vector3d::Zero()), 
-            thrust(9.81) {}
-        
-        ControlAction(const Eigen::Vector3d& a, const Eigen::Vector3d& omega, double T) :
-            a_des(a), attitude_rate(omega), thrust(T) {}
-    };
-    
-    // State structure for prediction
-    struct PredictedState {
-        Eigen::Vector3d position;
-        Eigen::Vector3d velocity;
-        Eigen::Matrix3d rotation;
-        Eigen::Vector3d angular_velocity;
-        
-        PredictedState() :
-            position(Eigen::Vector3d::Zero()),
-            velocity(Eigen::Vector3d::Zero()),
-            rotation(Eigen::Matrix3d::Identity()),
-            angular_velocity(Eigen::Vector3d::Zero()) {}
-    };
-    
-    // ODE function for state prediction
-    PredictedState rigid_body_ode(const PredictedState& state, const ControlAction& control, double dt);
-    
-    // RK4 integration step
-    PredictedState rk4_step(const PredictedState& state, const ControlAction& control, double dt);
-    
-    // Predict state by applying queued controls
-    PredictedState predict_state(const State& current_state, double dt_control, int integration_steps);
-    
-    // Compute control action
-    ControlAction compute_control_action(
-        const Eigen::Vector3d& position_ref,
-        const Eigen::Vector3d& velocity_ref, 
-        const Eigen::Vector3d& acceleration_ref,
-        const Eigen::Vector3d& jerk_ref,
-        const PredictedState& predicted_state,
-        double yaw,
-        double yaw_rate,
-        double dt);
-    
-    // Convert State to PredictedState
-    PredictedState state_to_predicted(const State& state);
-    
-    // Queue of control actions
-    std::deque<ControlAction> queued_control_actions_;
-    // Queue of predicted states for visualization
-    std::deque<PredictedState> queued_predicted_states_;
-    
-    // Predictive control parameters
-    int K_;                     // Prediction horizon (number of steps)
-    double delay_;              // Control delay in seconds
-    double dt_control_;         // Control update interval
-    bool use_predictive_control_; // Enable/disable predictive control
-    
-    // Inertia matrix (needed for dynamics prediction)
-    Eigen::Matrix3d inertia_;
-    
-    // Last predicted state for visualization
-    PredictedState last_predicted_state_;
-    
-    // Publishers for predicted states
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr predicted_position_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr predicted_velocity_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr predicted_attitude_pub_;
-    
-    // ========== END PREDICTIVE CONTROL ADDITIONS ==========
+    // Evaluate the active segment polynomial and first three derivatives
+    // at local segment time t_local.
+    void eval_trajectory(double t_local,
+                         Eigen::Vector3d& pos,
+                         Eigen::Vector3d& vel,
+                         Eigen::Vector3d& acc,
+                         Eigen::Vector3d& jerk) const;
 
+    // ── Control ───────────────────────────────────────────────────────────
 
-    
+    void set_position(const Eigen::Vector3d& pos,
+                      const Eigen::Vector3d& vel,
+                      const Eigen::Vector3d& acc,
+                      const Eigen::Vector3d& jerk,
+                      double yaw, double yaw_rate, double dt);
 
-    // Helper functions
-    Eigen::VectorXd generatePolynomialTrajectory(const std::vector<Constraint>& constraints, int polynomial_order);
-    void generatePathMsg();
-    void generateTrajectoryMarkers(double dt_marker);
-    void publishDroneMarker();
-    void setTrajectoryConstraints();
-    void debuggingAttitudeRefs(const Eigen::Vector3d& acceleration, const Eigen::Vector3d& jerk, const State& vehicle_state);
-    void debuggingRealAcceleration(const State& vehicle_state, const Eigen::Vector3d& position, const Eigen::Vector3d& velocity, const Eigen::Vector3d& acceleration);
-    double compute_output(double pos_error, double vel_error, double external_force, unsigned int i);
-    void set_position(const Eigen::Vector3d& position, const Eigen::Vector3d& velocity, const Eigen::Vector3d& acceleration, const Eigen::Vector3d& jerk, double yaw, double yaw_rate, double dt);
+    double compute_output(double pos_err, double vel_err,
+                          double ff_acc, unsigned int axis);
 
+    // ── Debug / visualisation ─────────────────────────────────────────────
 
+    void debug_attitude_refs(const Eigen::Vector3d& acc,
+                             const Eigen::Vector3d& jerk,
+                             const State& state);
 
-    // Callback for settings service
-    void throughWindowCallback(const pegasus_msgs::srv::ThroughWindow::Request::SharedPtr request, const pegasus_msgs::srv::ThroughWindow::Response::SharedPtr response);
+    void generate_path_msg();
+    void generate_segment_path_msgs();
+    void generate_trajectory_markers(double dt_marker);
+    void publish_drone_marker();
 
-    // Polynomial coefficients for flat outputs
-    std::vector<Eigen::VectorXd> x_segments;
-    std::vector<Eigen::VectorXd> y_segments;
-    std::vector<Eigen::VectorXd> z_segments;
-    std::vector<double> segment_durations_, segmen_start_times_;
+    // ── Service callback ──────────────────────────────────────────────────
+
+    void through_window_callback(
+        const pegasus_msgs::srv::ThroughWindow::Request::SharedPtr  req,
+        const pegasus_msgs::srv::ThroughWindow::Response::SharedPtr res);
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  Member variables
+    // ═════════════════════════════════════════════════════════════════════
+
+    // ── Trajectory segments ───────────────────────────────────────────────
+    std::vector<Eigen::VectorXd> x_segments_;
+    std::vector<Eigen::VectorXd> y_segments_;
+    std::vector<Eigen::VectorXd> z_segments_;
+    std::vector<double>          segment_durations_;
+
+    // Cumulative start times within the entry block and within one circular lap.
+    // entry_start_times_[i]  = time since t=0   for entry segment i
+    // circ_start_times_[i]   = time since start of circular lap for circular segment i
+    std::vector<double> entry_start_times_;
+    std::vector<double> circ_start_times_;
+
+    // Counts and durations
+    int    num_entry_segments_{1};
+    int    num_circular_segments_{1};
+    int    num_segments_total_{2};
+    int    num_laps_{1};
+    double entry_duration_{0.0};        // total time of entry portion
+    double circular_lap_duration_{0.0}; // duration of one circular lap
+    double T_final_{0.0};               // entry_duration + num_laps * circular_lap_duration
+
+    // Active coefficients (swapped each tick)
     Eigen::VectorXd x_coeffs_;
     Eigen::VectorXd y_coeffs_;
     Eigen::VectorXd z_coeffs_;
-    Eigen::VectorXd yaw_coeffs_;
 
-    // Trajectory parameters
-    double window_position[3]{0.0, 0.0, 0.0}; // Window position
-    double window_angle{0.0}; // Window angle
-    double T_final_{0.0}; // Default trajectory duration
-    double t{0.0};        // Internal clock
+    // ── Clock and phase tracking ──────────────────────────────────────────
+    double t_{0.0};
+    bool   in_entry_phase_{true};   // true while playing entry segments
+    int    current_segment_{0};     // index into x_segments_ / y_segments_ / z_segments_
+    int    current_lap_{0};         // 0-indexed circular lap counter
 
-    State vehicle_state;
+    // ── Vehicle constants ─────────────────────────────────────────────────
+    double mass_{1.0};
 
-    Eigen::Vector3d total_acc;
-    const double g = 9.81;
-    double u = 0.0;
-    const double eps = 1e-9;
-    double roll  = 0.0,pitch = 0.0,yaw = 0.0;
+    // ── Controller gains ──────────────────────────────────────────────────
+    Eigen::Vector3d kp_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d kd_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d ki_{Eigen::Vector3d::Zero()};
+    Eigen::Matrix3d kr_{Eigen::Matrix3d::Zero()};
+    Eigen::Vector3d min_output_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d max_output_{Eigen::Vector3d::Zero()};
 
-    double u_dot = 0.0, theta_dot = 0.0, phi_dot = 0.0, psi_dot = 0.0;
-    Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-    Eigen::Vector3d eulers = Eigen::Vector3d::Zero();
-    double psi_real   = 0.0,theta_real =0.0,phi_real   = 0.0;
-    double p = 0.0,q = 0.0,r = 0.0;
-    double s_phi = 0.0,c_phi = 0.0,s_theta = 0.0,c_theta = 0.0;
-    const double SING_TOL = 1e-6;// Guard against cos(theta) near zero (gimbal singularity)
-    double qsinr = 0.0;
-    
+    // ── Linear drag (inertial frame) ──────────────────────────────────────
+    double rho_x_{0.6};
+    double rho_y_{0.6};
+    double rho_z_{0.4};
 
-    // Vehicle mass
-    double mass_;
-
-    // Gains from parameters
-    Eigen::Vector3d kp = Eigen::Vector3d::Zero();
-    Eigen::Vector3d kd = Eigen::Vector3d::Zero();
-    Eigen::Vector3d ki = Eigen::Vector3d::Zero();
-    // Gains for the attitude controller
-    Eigen::Matrix3d kr = Eigen::Matrix3d::Zero();
-    Eigen::Vector3d min_output = Eigen::Vector3d::Zero();
-    Eigen::Vector3d max_output = Eigen::Vector3d::Zero();
-
-    // Check if the waypoint is already set
-    bool window_point_set_{false};
-
-    // ROS publishers
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr trajectory_accel_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr trajectory_vel_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr trajectory_position_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr trajectory_marker_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr drone_marker_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr velocity_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr position_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr acceleration_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr drag_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr thrust_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr thrust_no_drag_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_error_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_ref_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_rate_ref_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_real_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_rate_real_pub_;
-    rclcpp::Publisher<pegasus_msgs::msg::YawLessStatistics>::SharedPtr statistics_pub_{nullptr};
-    // rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr attitude_pub_;
-
-    // ROS service
+    // ── Service / trigger ─────────────────────────────────────────────────
+    bool   window_point_set_{false};
+    double window_position_[3]{0.0, 0.0, 0.0};
+    double window_angle_{0.0};
     rclcpp::Service<pegasus_msgs::srv::ThroughWindow>::SharedPtr window_service_{nullptr};
 
-    // Messages
-    geometry_msgs::msg::Vector3Stamped euler_msg;
-    nav_msgs::msg::Path path_msg_;
-    geometry_msgs::msg::Vector3 acceleration_msg;
-    geometry_msgs::msg::Vector3 velocity_msg;
-    geometry_msgs::msg::Vector3 position_msg;
-    geometry_msgs::msg::Vector3 drag_msg;
+    // ── ROS publishers ────────────────────────────────────────────────────
+    // Full reference path (all segments, published once)
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+
+    // Per-segment reference paths: /debug/trajectory/seg{i}
+    // Entry segments are dashed/grey; circular segments are coloured.
+    std::vector<rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr> seg_path_pubs_;
+    std::vector<nav_msgs::msg::Path>                               seg_path_msgs_;
+
+    // Live tracked path: /debug/tracked_path  (reset on enter(), appended each tick)
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr tracked_path_pub_;
+    nav_msgs::msg::Path                               tracked_path_msg_;
+
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr drone_marker_pub_;
+
+    // Reference trajectory debug
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr traj_pos_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr traj_vel_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr traj_acc_pub_;
+
+    // Real state debug
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr real_pos_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr real_vel_pub_;
+
+    // Attitude debug
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr att_error_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr att_ref_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr att_rate_ref_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr att_real_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr att_rate_real_pub_;
+
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr thrust_pub_;
+
+    // ── Cached messages ───────────────────────────────────────────────────
+    nav_msgs::msg::Path             path_msg_;
     visualization_msgs::msg::Marker marker_msg_;
 
-    pegasus_msgs::msg::YawLessStatistics statistics_msg_;
-
+    // ── Constants ─────────────────────────────────────────────────────────
+    static constexpr double G       = 9.81;
+    static constexpr double RAD2DEG = 180.0 / M_PI;
 };
 
 } // namespace autopilot

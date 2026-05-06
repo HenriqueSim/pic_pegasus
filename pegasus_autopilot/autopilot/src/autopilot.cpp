@@ -430,55 +430,55 @@ void Autopilot::change_mode_callback(const std::shared_ptr<pegasus_msgs::srv::Se
 
 void Autopilot::state_callback(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
     // ------------------- THE STATE OF THE VEHICLE IS THE DIRECTLY THE GAZEBO ONE ---------------------------- //
-    // // ENU→NED rotation (proper rotation, det = +1)
-    // static const Eigen::Matrix3d R_ENU_to_NED = (Eigen::Matrix3d() <<
-    //     0, 1, 0,
-    //     1, 0, 0,
-    //     0, 0, -1).finished();
+    // ENU→NED rotation (proper rotation, det = +1)
+    static const Eigen::Matrix3d R_ENU_to_NED = (Eigen::Matrix3d() <<
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, -1).finished();
     
-    // static const Eigen::Matrix3d R_BODY_NED_to_ENU = (Eigen::Matrix3d() <<
-    // 1, 0, 0,
-    // 0, -1, 0,
-    // 0, 0, -1).finished();
+    static const Eigen::Matrix3d R_BODY_NED_to_ENU = (Eigen::Matrix3d() <<
+    1, 0, 0,
+    0, -1, 0,
+    0, 0, -1).finished();
 
-    // // --- Position ---
-    // Eigen::Vector3d p_enu(msg->pose.pose.position.x,
-    //                       msg->pose.pose.position.y,
-    //                       msg->pose.pose.position.z);
-    // Eigen::Vector3d p_ned = R_ENU_to_NED * p_enu;
+    // --- Position ---
+    Eigen::Vector3d p_enu(msg->pose.pose.position.x,
+                          msg->pose.pose.position.y,
+                          msg->pose.pose.position.z);
+    Eigen::Vector3d p_ned = R_ENU_to_NED * p_enu;
 
-    // // --- Orientation ---
-    // Eigen::Quaterniond q_enu(msg->pose.pose.orientation.w,
-    //                          msg->pose.pose.orientation.x,
-    //                          msg->pose.pose.orientation.y,
-    //                          msg->pose.pose.orientation.z);
-    // Eigen::Matrix3d R_enu = q_enu.toRotationMatrix();
-    // Eigen::Matrix3d R_ned = R_ENU_to_NED * R_enu * R_BODY_NED_to_ENU;
-    // Eigen::Quaterniond q_ned(R_ned);
-    // // q_ned.normalize();
+    // --- Orientation ---
+    Eigen::Quaterniond q_enu(msg->pose.pose.orientation.w,
+                             msg->pose.pose.orientation.x,
+                             msg->pose.pose.orientation.y,
+                             msg->pose.pose.orientation.z);
+    Eigen::Matrix3d R_enu = q_enu.toRotationMatrix();
+    Eigen::Matrix3d R_ned = R_ENU_to_NED * R_enu * R_BODY_NED_to_ENU;
+    Eigen::Quaterniond q_ned(R_ned);
+    // q_ned.normalize();
 
-    // // --- Velocity ---
-    // Eigen::Vector3d v_enu(msg->twist.twist.linear.x,
-    //                       msg->twist.twist.linear.y,
-    //                       msg->twist.twist.linear.z);
-    // Eigen::Vector3d v_ned = R_ENU_to_NED * v_enu;
+    // --- Velocity ---
+    Eigen::Vector3d v_enu(msg->twist.twist.linear.x,
+                          msg->twist.twist.linear.y,
+                          msg->twist.twist.linear.z);
+    Eigen::Vector3d v_ned = R_ENU_to_NED * v_enu;
 
-    // // --- Angular velocity ---
-    // // If angular velocity is in BODY frame → unchanged (same body axes)
-    // // If angular velocity is in WORLD (ENU) → must rotate
-    // Eigen::Vector3d w_enu(msg->twist.twist.angular.x,
-    //                       msg->twist.twist.angular.y,
-    //                       msg->twist.twist.angular.z);
-    // Eigen::Vector3d w_ned = w_enu; // for Gazebo (body frame), keep unchanged
+    // --- Angular velocity ---
+    // If angular velocity is in BODY frame → unchanged (same body axes)
+    // If angular velocity is in WORLD (ENU) → must rotate
+    Eigen::Vector3d w_enu(msg->twist.twist.angular.x,
+                          msg->twist.twist.angular.y,
+                          msg->twist.twist.angular.z);
+    Eigen::Vector3d w_ned = w_enu; // for Gazebo (body frame), keep unchanged
 
-    // // Update the state of the vehicle
-    // state_.position = {p_ned(0), p_ned(1), p_ned(2)};
-    // state_.velocity = {v_ned(0), v_ned(1), v_ned(2)};
-    // state_.attitude.w() = q_ned.w();
-    // state_.attitude.x() = q_ned.x();
-    // state_.attitude.y() = q_ned.y();
-    // state_.attitude.z() = q_ned.z();
-    // state_.angular_velocity = {w_ned(0), w_ned(1), w_ned(2)};
+    // Update the state of the vehicle
+    state_.position = {p_ned(0), p_ned(1), p_ned(2)};
+    state_.velocity = {v_ned(0), v_ned(1), v_ned(2)};
+    state_.attitude.w() = q_ned.w();
+    state_.attitude.x() = q_ned.x();
+    state_.attitude.y() = q_ned.y();
+    state_.attitude.z() = q_ned.z();
+    state_.angular_velocity = {w_ned(0), w_ned(1), w_ned(2)};
 
     // ------------------- THE STATE OF THE VEHICLE IS THE FILTER ONE ---------------------------- //
     // // Update the state of the vehicle
@@ -486,42 +486,67 @@ void Autopilot::state_callback(const nav_msgs::msg::Odometry::ConstSharedPtr msg
     // state_.position[1] = msg->pose.pose.position.y;
     // state_.position[2] = msg->pose.pose.position.z;
 
-    state_.velocity[0] = msg->twist.twist.linear.x;
-    state_.velocity[1] = msg->twist.twist.linear.y;
-    state_.velocity[2] = msg->twist.twist.linear.z;
+    // state_.velocity[0] = msg->twist.twist.linear.x;
+    // state_.velocity[1] = msg->twist.twist.linear.y;
+    // state_.velocity[2] = msg->twist.twist.linear.z;
 
     // state_.attitude.w() = msg->pose.pose.orientation.w;
     // state_.attitude.x() = msg->pose.pose.orientation.x;
     // state_.attitude.y() = msg->pose.pose.orientation.y;
     // state_.attitude.z() = msg->pose.pose.orientation.z;
 
-    state_.angular_velocity[0] = msg->twist.twist.angular.x;
-    state_.angular_velocity[1] = msg->twist.twist.angular.y;
-    state_.angular_velocity[2] = msg->twist.twist.angular.z;
+    // state_.angular_velocity[0] = msg->twist.twist.angular.x;
+    // state_.angular_velocity[1] = msg->twist.twist.angular.y;
+    // state_.angular_velocity[2] = msg->twist.twist.angular.z;
 
-    // Publish the current state of the vehicle for debugging
+    // // Publish the current state of the vehicle for debugging
+    // nav_msgs::msg::Odometry state_msg_;
+    // state_msg_.header.stamp = this->get_clock()->now();
+    // state_msg_.header.frame_id = "odom";       // Make sure this matches your fixed frame
+    // state_msg_.child_frame_id = "base_link";   // Make sure this matches your vehicle frame
+
+    // // --- Populate Pose ---
+    // state_msg_.pose.pose.position.x = msg->pose.pose.position.x;
+    // state_msg_.pose.pose.position.y = msg->pose.pose.position.y;
+    // state_msg_.pose.pose.position.z = msg->pose.pose.position.z;
+    // state_msg_.pose.pose.orientation.w = msg->pose.pose.orientation.w;
+    // state_msg_.pose.pose.orientation.x = msg->pose.pose.orientation.x;
+    // state_msg_.pose.pose.orientation.y = msg->pose.pose.orientation.y;
+    // state_msg_.pose.pose.orientation.z = msg->pose.pose.orientation.z;
+
+    // // --- Populate Twist (Velocity) ---
+    // state_msg_.twist.twist.linear.x = msg->twist.twist.linear.x;
+    // state_msg_.twist.twist.linear.y = msg->twist.twist.linear.y;
+    // state_msg_.twist.twist.linear.z = msg->twist.twist.linear.z;
+
+    // state_msg_.twist.twist.angular.x = msg->twist.twist.angular.x;
+    // state_msg_.twist.twist.angular.y = msg->twist.twist.angular.y;
+    // state_msg_.twist.twist.angular.z = msg->twist.twist.angular.z;
+
+    // state_filter_publisher_->publish(state_msg_);
+
     nav_msgs::msg::Odometry state_msg_;
     state_msg_.header.stamp = this->get_clock()->now();
     state_msg_.header.frame_id = "odom";       // Make sure this matches your fixed frame
     state_msg_.child_frame_id = "base_link";   // Make sure this matches your vehicle frame
 
     // --- Populate Pose ---
-    state_msg_.pose.pose.position.x = msg->pose.pose.position.x;
-    state_msg_.pose.pose.position.y = msg->pose.pose.position.y;
-    state_msg_.pose.pose.position.z = msg->pose.pose.position.z;
-    state_msg_.pose.pose.orientation.w = msg->pose.pose.orientation.w;
-    state_msg_.pose.pose.orientation.x = msg->pose.pose.orientation.x;
-    state_msg_.pose.pose.orientation.y = msg->pose.pose.orientation.y;
-    state_msg_.pose.pose.orientation.z = msg->pose.pose.orientation.z;
+    state_msg_.pose.pose.position.x = p_ned(0);
+    state_msg_.pose.pose.position.y = p_ned(1);
+    state_msg_.pose.pose.position.z = p_ned(2);
+    state_msg_.pose.pose.orientation.w = q_ned.w();
+    state_msg_.pose.pose.orientation.x = q_ned.x();
+    state_msg_.pose.pose.orientation.y = q_ned.y();
+    state_msg_.pose.pose.orientation.z = q_ned.z();
 
     // --- Populate Twist (Velocity) ---
-    state_msg_.twist.twist.linear.x = msg->twist.twist.linear.x;
-    state_msg_.twist.twist.linear.y = msg->twist.twist.linear.y;
-    state_msg_.twist.twist.linear.z = msg->twist.twist.linear.z;
+    state_msg_.twist.twist.linear.x = v_ned(0);
+    state_msg_.twist.twist.linear.y = v_ned(1);
+    state_msg_.twist.twist.linear.z = v_ned(2);
 
-    state_msg_.twist.twist.angular.x = msg->twist.twist.angular.x;
-    state_msg_.twist.twist.angular.y = msg->twist.twist.angular.y;
-    state_msg_.twist.twist.angular.z = msg->twist.twist.angular.z;
+    state_msg_.twist.twist.angular.x = w_ned(0);
+    state_msg_.twist.twist.angular.y = w_ned(1);
+    state_msg_.twist.twist.angular.z = w_ned(2);
 
     state_filter_publisher_->publish(state_msg_);
 }
@@ -570,11 +595,11 @@ void Autopilot::state_mocap_callback(const geometry_msgs::msg::PoseStamped::Cons
     q_ned.normalize();
 
     // // Update the state of the vehicle
-    state_.position = {p_ned(0), p_ned(1), p_ned(2)};
-    state_.attitude.w() = q_ned.w();
-    state_.attitude.x() = q_ned.x();
-    state_.attitude.y() = q_ned.y();
-    state_.attitude.z() = q_ned.z();
+    // state_.position = {p_ned(0), p_ned(1), p_ned(2)};
+    // state_.attitude.w() = q_ned.w();
+    // state_.attitude.x() = q_ned.x();
+    // state_.attitude.y() = q_ned.y();
+    // state_.attitude.z() = q_ned.z();
 
     // --- Publish Odometry for Debugging ---
     nav_msgs::msg::Odometry state_msg_;

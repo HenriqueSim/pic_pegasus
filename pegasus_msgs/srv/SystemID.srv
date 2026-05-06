@@ -1,0 +1,10 @@
+# Axis direction vector for the sinusoidal excitation (normalised)
+float64[3] axis
+
+# Amplitude of the attitude excitation [deg]
+float64 frequency
+float64 amplitude
+
+---
+
+bool success

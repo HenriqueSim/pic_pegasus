@@ -142,7 +142,8 @@
         status: "autopilot/status"
       subscribers:
         state_mocap: "mocap/pose_enu/drone9"
-        state: "fmu/filter/state"
+        state_filter: "simulator/state"
+        # state: "fmu/filter/state"
         status: "fmu/status"
         constants: "fmu/constants"
       services:
