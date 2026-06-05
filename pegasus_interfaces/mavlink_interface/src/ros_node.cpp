@@ -873,14 +873,23 @@ void ROSNode::on_actuator_output_status_callback(const mavsdk::Telemetry::Actuat
     // Set the active actuator count
     actuator_msg.active = static_cast<uint8_t>(actuators_output_status.active);
 
-    // Set the actuator outputs
-    // actuator_msg.actuator = actuators_output_status.actuator;
     std::vector<float> normalized_outputs;
 
-    for (float pwm : actuators_output_status.actuator) {
-        float normalized = std::clamp((pwm - 1000.0f) / 1000.0f, 0.0f, 1.0f);
+    // Adapt for DShot Protocol (Range: 48 to 2047)
+    for (float dshot_val : actuators_output_status.actuator) {
+        float normalized = 0.0f;
+        
+        // Only process throttle values (48 and above)
+        // 0 is disarmed, 1-47 are reserved for ESC commands/telemetry
+        if (dshot_val >= 48.0f) {
+            // Subtract minimum throttle (48) and divide by the active range (2047 - 48 = 1999)
+            normalized = std::clamp((dshot_val - 48.0f) / 1999.0f, 0.0f, 1.0f);
+        }
+        
+        // Convert to percentage (0.0 to 100.0)
         normalized_outputs.push_back(normalized * 100.0f);
     }
+    
     actuator_msg.actuator = normalized_outputs;
 
     // Publish the actuator message
