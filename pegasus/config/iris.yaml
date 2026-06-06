@@ -107,7 +107,7 @@
       # ---------------------------------------------------------------------------------------------------------
       default_mode: "DisarmMode"
       # Define all the existing operation modes
-      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "OnboardLandMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification"]
+      modes: ["DisarmMode", "ArmMode", "TakeoffMode", "OnboardLandMode", "LandMode", "HoldMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification","ChirpIdentification"]
       # Configurations of each operating mode:
       # 1) Define the valid transitions from a given operation mode to other operation modes
       # 2) Fallback mode if something goes wrong
@@ -145,7 +145,7 @@
         valid_transitions: ["OnboardLandMode", "LandMode", "WaypointMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "DragIdentification"]
         fallback: "OnboardLandMode"
       WaypointMode: 
-        valid_transitions: ["OnboardLandMode", "LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification"]
+        valid_transitions: ["OnboardLandMode", "LandMode", "HoldMode", "FollowTrajectoryMode", "PassThroughMode", "SystemIdentification", "ThroughWindowMode", "DragIdentification", "ChirpIdentification"]
         fallback: "HoldMode"
         geofencing_violation_fallback: "HoldMode"
         set_waypoint_service: "autopilot/set_waypoint"
@@ -163,6 +163,11 @@
         valid_transitions: ["TakeoffMode", "HoldMode", "LandMode", "WaypointMode"]
         fallback: "HoldMode"
         on_finish: "HoldMode"
+      ChirpIdentification:
+        valid_transitions: ["TakeoffMode", "HoldMode", "LandMode", "WaypointMode"]
+        fallback: "HoldMode"
+        on_finish: "HoldMode"
+        set_settings_service: "autopilot/set_settings"
       FollowTrajectoryMode: 
         valid_transitions: ["OnboardLandMode", "LandMode", "HoldMode", "WaypointMode", "PassThroughMode"]
         fallback: "HoldMode"
@@ -179,7 +184,7 @@
         control_attitude_rate: "fmu/in/force/attitude_rate"
         status: "autopilot/status"
       subscribers:
-        # state: "fmu/filter/state"
+        # state_filter: "fmu/filter/state"
         state_filter: "simulator/state"
         status: "fmu/status"
         constants: "fmu/constants"

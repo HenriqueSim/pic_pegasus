@@ -50,6 +50,11 @@
       <description>System Identification operation mode.</description>
   </class>
 
+  <!-- Chirp Identification -->
+  <class type="autopilot::ChirpIdentification" base_class_type="autopilot::Mode">
+      <description>Chirp Identification operation mode.</description>
+  </class>   
+
   <!-- Drag Identification -->
   <class type="autopilot::DragIdentification" base_class_type="autopilot::Mode">
       <description>Drag Identification operation mode.</description>

@@ -77,6 +77,7 @@ add_library(${PROJECT_NAME}
   src/mode_takeoff.cpp
   src/mode_waypoint.cpp
   src/mode_systemID.cpp
+  src/mode_chirpID.cpp
   src/mode_dragID.cpp
   src/mode_through_window.cpp
 )
