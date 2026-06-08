@@ -1,0 +1,9 @@
+# Target window position [x, y, z] in metres
+float64[3] window_position
+
+# Window normal angle [deg]
+float64 window_angle
+
+---
+
+bool success

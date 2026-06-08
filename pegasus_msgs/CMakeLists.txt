@@ -88,6 +88,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
   # Autopilot services
   "srv/SetMode.srv"
+  "srv/SystemID.srv"
+  "srv/ThroughWindow.srv"
   
   # Paths services/messages
   "msg/Speed.msg"
@@ -107,6 +109,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/TriggerBag.srv"
 
   # Messages
+  "msg/ActuatorOutputStatus.msg"
   "msg/AutopilotStatus.msg"
   "msg/Battery.msg"
   "msg/ControlAttitude.msg"
@@ -131,6 +134,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PidStatistic.msg"
   "msg/PidStatistics.msg"
   "msg/MellingerStatistics.msg"
+  "msg/YawLessStatistics.msg"
   
   # Depedencies for generating the messages, services and actions
   DEPENDENCIES 

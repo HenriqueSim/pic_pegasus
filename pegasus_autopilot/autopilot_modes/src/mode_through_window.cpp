@@ -197,9 +197,9 @@ void ThroughWindowMode::update(double dt) {
         
         vehicle_state = get_vehicle_state();
 
-        double rho_x = 0.6;//*1.0;
-        double rho_y = 0.6; //*1.5;
-        double rho_z = 0.4;
+        double rho_x = 0.567; //0.6;//*1.0;
+        double rho_y = 0.567; //0.6; //*1.5;
+        double rho_z = 0.0; //0.4;
 
         // // Compute drag force (assuming drag is proportional to velocity)
         Eigen::Vector3d rho(rho_x, rho_y, rho_z);
@@ -237,7 +237,8 @@ void ThroughWindowMode::update(double dt) {
         
         // Call set_position with the appropriate reference
         // set_position(position, velocity, acceleration, jerk, 0.0, 0.0, dt);
-        set_position(position, velocity, acceleration+drag_force, jerk+rho_acc, 0.0, 0.0, dt);
+        // set_position(position, velocity, acceleration+drag_force, jerk+rho_acc, 0.0, 0.0, dt);
+        controller_->set_position(position, velocity, acceleration+drag_force, jerk+rho_acc, 0.0, 0.0, dt);
         publishDroneMarker();
     }
 }
